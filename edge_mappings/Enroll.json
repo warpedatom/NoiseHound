@@ -1,0 +1,24 @@
+{
+  "edge_type": "Enroll",
+  "description": "Generic enrollment right on a certificate template; prerequisite edge for the ESC abuse chains.",
+  "static_noise_score": 30,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 4886,
+      "detail": "Certificate request logged on the CA - benign in isolation; enrollment is a normal operation.",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Enrollment alone is common and low-signal; risk materialises when combined with a vulnerable template (ESC1-8).",
+      "reliability": "low"
+    }
+  ],
+  "mitre_technique": "T1649",
+  "prerequisite_privilege": "Certificate-Enrollment right on the template",
+  "abuse_primitive": "Enroll; abuse potential depends on the template's ESC posture.",
+  "notes": "Scored low because plain enrollment is legitimate. Pathing through it only becomes dangerous when it reaches a vulnerable template edge (ADCSESC1)."
+}

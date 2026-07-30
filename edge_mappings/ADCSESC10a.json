@@ -1,0 +1,38 @@
+{
+  "edge_type": "ADCSESC10a",
+  "description": "Weak certificate mapping (ESC10) abuse via a user account when StrongCertificateBindingEnforcement is relaxed.",
+  "static_noise_score": 50,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 4886,
+      "detail": "Certificate request logged on the CA.",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4887,
+      "detail": "Certificate issued on the CA.",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4768,
+      "detail": "PKINIT TGT request with the issued certificate.",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Certificate authentication succeeding under a weak/compatibility binding mode is the ESC10 signal.",
+      "reliability": "medium"
+    }
+  ],
+  "mitre_technique": "T1649",
+  "prerequisite_privilege": "Control of a victim user + weak DC certificate-binding enforcement",
+  "abuse_primitive": "Change the victim UPN to a target, enroll, PKINIT as the target.",
+  "notes": "Depends on StrongCertificateBindingEnforcement being Disabled/Compatibility on the DCs."
+}

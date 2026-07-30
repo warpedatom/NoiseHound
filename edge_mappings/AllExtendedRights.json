@@ -1,0 +1,24 @@
+{
+  "edge_type": "AllExtendedRights",
+  "description": "Holds all extended rights on the target, including User-Force-Change-Password and replication rights.",
+  "static_noise_score": 45,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 4662,
+      "detail": "DS Access for the specific extended right exercised - requires object auditing.",
+      "reliability": "high_if_auditing_enabled",
+      "default_enabled": false
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Score reflects the quietest available extended-right abuse; the chosen primitive (password reset, LAPS read, DCSync) sets the real cost.",
+      "reliability": "medium"
+    }
+  ],
+  "mitre_technique": "T1222.001",
+  "prerequisite_privilege": "All-Extended-Rights (or GenericAll) on target",
+  "abuse_primitive": "Any extended-right abuse: ForceChangePassword, ReadLAPSPassword, or (on the domain) DCSync.",
+  "notes": "On the domain object this implies DCSync (85). On a user it implies ForceChangePassword. Treat as an umbrella - the concrete abuse governs noise."
+}

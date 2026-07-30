@@ -1,0 +1,24 @@
+{
+  "edge_type": "HasSIDHistory",
+  "description": "The principal carries the target's SID in its SIDHistory, inheriting the target's access.",
+  "static_noise_score": 15,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 4765,
+      "detail": "SID History was added to an account - fires on injection, not on use.",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Using inherited SIDHistory access is largely indistinguishable from legitimate access at auth time; injection is the detectable moment.",
+      "reliability": "low"
+    }
+  ],
+  "mitre_technique": "T1134.005",
+  "prerequisite_privilege": "None to traverse - the SIDHistory already grants the access",
+  "abuse_primitive": "Authenticate normally; the SIDHistory silently confers the target's group access.",
+  "notes": "Quiet to traverse because it is a token-side inheritance. Injecting SIDHistory (4765/4766) is the loud event, and is a separate action from using it."
+}

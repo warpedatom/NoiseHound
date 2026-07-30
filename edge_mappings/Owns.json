@@ -1,0 +1,24 @@
+{
+  "edge_type": "Owns",
+  "description": "Principal owns the target object and can rewrite its DACL at will.",
+  "static_noise_score": 43,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 5136,
+      "detail": "Any DACL rewrite performed via ownership is logged under DS-change auditing.",
+      "reliability": "high",
+      "default_enabled": false
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Same grant-then-use behavioural pattern as WriteOwner/WriteDacl.",
+      "reliability": "medium"
+    }
+  ],
+  "mitre_technique": "T1222.001",
+  "prerequisite_privilege": "Ownership of target object",
+  "abuse_primitive": "Owner rewrites DACL to grant full control, then abuses.",
+  "notes": "Treated near WriteOwner. The abuse action selected downstream sets the true cost."
+}

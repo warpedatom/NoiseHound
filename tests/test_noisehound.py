@@ -1,0 +1,872 @@
+"""End-to-end and unit tests for NoiseHound.
+
+Run: python -m pytest tests/  (or python tests/test_noisehound.py for a
+dependency-light smoke run without pytest).
+"""
+import io
+import json
+import os
+import sys
+import zipfile
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import networkx as nx
+
+from noisehound.annotate import annotate
+from noisehound.corpus import load_corpus
+from noisehound.environment import EnvironmentProfile
+from noisehound.ingest import find_node, load_graph
+from noisehound.schema import ScoringConfig, validate_entry, CorpusError
+from noisehound.solver import score_path, solve
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SAMPLE = os.path.join(ROOT, "samples", "sample_graph.json")
+
+
+def test_corpus_loads_and_validates():
+    corpus = load_corpus()
+    assert len(corpus) >= 15
+    assert "DCSync" in corpus
+    assert corpus.static_score("DCSync") == (85.0, True)
+    # Case-insensitive lookup.
+    assert corpus.static_score("dcsync")[0] == 85.0
+
+
+def test_unknown_edge_fails_safe():
+    corpus = load_corpus(default_unknown_noise=60)
+    score, known = corpus.static_score("TotallyMadeUpEdge")
+    assert score == 60.0
+    assert known is False
+
+
+def test_schema_rejects_bad_score():
+    bad = {"edge_type": "X", "static_noise_score": 150, "telemetry": []}
+    try:
+        validate_entry(bad)
+    except CorpusError:
+        return
+    raise AssertionError("expected CorpusError for out-of-range score")
+
+
+def test_schema_rejects_bad_source():
+    bad = {"edge_type": "X", "static_noise_score": 10,
+           "telemetry": [{"source": "carrier_pigeon", "reliability": "low"}]}
+    try:
+        validate_entry(bad)
+    except CorpusError:
+        return
+    raise AssertionError("expected CorpusError for invalid telemetry source")
+
+
+def test_score_path_weighting():
+    cfg = ScoringConfig()
+    # max=25, mean=(2+25+20+2)/4=12.25 -> 25*0.6 + 12.25*0.4 = 19.9
+    assert round(score_path([2, 25, 20, 2], cfg), 2) == 19.9
+    assert score_path([], cfg) == 0.0
+
+
+def test_config_weights_must_sum_to_one():
+    try:
+        ScoringConfig(max_weight=0.7, mean_weight=0.4).validate()
+    except ValueError:
+        return
+    raise AssertionError("expected ValueError for weights not summing to 1")
+
+
+def test_ingest_normalised_sample():
+    g = load_graph(SAMPLE)
+    assert g.number_of_nodes() == 9
+    assert find_node(g, "jdoe") is not None
+    # Friendly-name resolution without the @DOMAIN suffix.
+    assert find_node(g, "Domain Admins") is not None
+
+
+def test_solver_ranks_by_noise_not_hops():
+    g = load_graph(SAMPLE)
+    corpus = load_corpus()
+    annotate(g, corpus)
+    src = find_node(g, "jdoe")
+    dst = find_node(g, "Domain Admins")
+    paths = solve(g, src, dst, k=5)
+
+    assert paths, "expected at least one path"
+    # Quietest path should be the 4-hop session path, not the 2-hop
+    # ForceChangePassword shortcut -> ranking is by noise, not hop count.
+    top = paths[0]
+    assert top.hop_count == 4
+    assert round(top.path_score, 1) == 19.9
+    # Scores must be non-decreasing across ranks.
+    scores = [p.path_score for p in paths]
+    assert scores == sorted(scores)
+    # The 2-hop ForceChangePassword path must exist but rank lower (louder).
+    fcp = [p for p in paths if any(e["edge_type"] == "ForceChangePassword" for e in p.edges)]
+    assert fcp and fcp[0].path_score > top.path_score
+
+
+def test_unknown_edge_marks_path():
+    g = load_graph(SAMPLE)
+    corpus = load_corpus()
+    stats = annotate(g, corpus)
+    assert "SyncedToEntraUser" in stats.unknown_types
+    assert stats.unknown_edges >= 1
+    assert stats.coverage < 1.0
+
+
+def _annotated(edges, nodes=None):
+    """Build and annotate a tiny normalised graph from an edge list."""
+    node_ids = nodes or sorted({n for e in edges for n in (e[0], e[1])})
+    doc = {
+        "nodes": [{"id": n, "name": n} for n in node_ids],
+        "edges": [{"source": s, "target": t, "edge_type": et} for s, t, et in edges],
+    }
+    tmp = os.path.join(ROOT, "samples", "_tmp_test_graph.json")
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(doc, fh)
+    try:
+        g = load_graph(tmp)
+    finally:
+        os.remove(tmp)
+    annotate(g, load_corpus())
+    return g
+
+
+def test_solver_prefers_uniformly_quiet_long_path():
+    # A (loud, short): 2 x GenericAll(40) -> sum 80, score 0.6*40+0.4*40 = 40.
+    # B (quiet, long): 4 x AdminTo(25)    -> sum 100, score 25 (quieter).
+    # B has the *higher* weight-sum (100 > 80), so a min-sum / small-cap
+    # k-shortest pass prefers A. Only the threshold-sweep backstop surfaces B.
+    edges = [
+        ("SRC", "A1", "GenericAll"), ("A1", "DST", "GenericAll"),                       # A
+        ("SRC", "B1", "AdminTo"), ("B1", "B2", "AdminTo"),
+        ("B2", "B3", "AdminTo"), ("B3", "DST", "AdminTo"),                              # B
+    ]
+    g = _annotated(edges)
+    # candidate_paths=1 means the breadth pass contributes only the min-sum path
+    # (A); B must come from the correctness backstop.
+    cfg = ScoringConfig(candidate_paths=1)
+    paths = solve(g, "SRC", "DST", k=5, config=cfg)
+    assert paths[0].hop_count == 4
+    assert round(paths[0].path_score, 1) == 25.0
+
+
+def test_environment_profile_raises_auditing_sensitive_edges():
+    corpus = load_corpus()
+    # DCSync: 85 static; with 4662 object auditing declared it floors to 90.
+    g = _annotated([("P", "DOM", "DCSync")])
+    prof = EnvironmentProfile(object_auditing_4662=True)
+    annotate(g, corpus, environment=prof)
+    assert g["P"]["DOM"]["effective_noise_score"] == 90.0
+    # Without the profile the static score stands.
+    g2 = _annotated([("P", "DOM", "DCSync")])
+    annotate(g2, corpus)
+    assert g2["P"]["DOM"]["effective_noise_score"] == 85.0
+
+
+def test_environment_hard_override_wins():
+    g = _annotated([("A", "B", "HasSession")])
+    prof = EnvironmentProfile(adjustments={"hassession": 72})
+    annotate(g, load_corpus(), environment=prof)
+    assert g["A"]["B"]["effective_noise_score"] == 72.0
+
+
+def test_live_score_beats_environment():
+    g = _annotated([("P", "DOM", "DCSync")])
+    prof = EnvironmentProfile(object_auditing_4662=True)  # would push to 90
+    annotate(g, load_corpus(), live_scores={("P", "DOM", "DCSync"): 12}, environment=prof)
+    assert g["P"]["DOM"]["effective_noise_score"] == 12.0
+
+
+def _bh_zip(files: dict) -> str:
+    path = os.path.join(ROOT, "samples", "_tmp_bh.zip")
+    with zipfile.ZipFile(path, "w") as zf:
+        for name, doc in files.items():
+            zf.writestr(name, json.dumps(doc))
+    return path
+
+
+def test_dcsync_synthesis_requires_both_replication_rights():
+    # Domain object where P1 has both GetChanges+GetChangesAll (=> DCSync) and
+    # P2 has only GetChanges (=> no DCSync edge).
+    domain = {
+        "meta": {"type": "domains"},
+        "data": [{
+            "ObjectIdentifier": "S-DOM",
+            "Properties": {"name": "CORP.LOCAL"},
+            "Aces": [
+                {"PrincipalSID": "S-P1", "PrincipalType": "User", "RightName": "GetChanges"},
+                {"PrincipalSID": "S-P1", "PrincipalType": "User", "RightName": "GetChangesAll"},
+                {"PrincipalSID": "S-P2", "PrincipalType": "User", "RightName": "GetChanges"},
+            ],
+        }],
+    }
+    zpath = _bh_zip({"domains.json": domain})
+    try:
+        g = load_graph(zpath)
+    finally:
+        os.remove(zpath)
+    assert g.has_edge("S-P1", "S-DOM")
+    assert "DCSync" in g["S-P1"]["S-DOM"]["edge_types"]
+    # P2 with only one replication right must NOT get a DCSync edge, and the raw
+    # replication right must not become a standalone edge either.
+    assert not g.has_edge("S-P2", "S-DOM")
+
+
+def test_adcs_esc1_synthesis_and_pathing():
+    dsid = "S-1-5-21-1"
+    export = {
+        "domains.json": {"meta": {"type": "domains"}, "data": [
+            {"ObjectIdentifier": dsid,
+             "Properties": {"name": "CORP.LOCAL", "domainsid": dsid}}]},
+        "groups.json": {"meta": {"type": "groups"}, "data": [
+            {"ObjectIdentifier": dsid + "-512",
+             "Properties": {"name": "DOMAIN ADMINS@CORP.LOCAL"}, "Aces": []}]},
+        "users.json": {"meta": {"type": "users"}, "data": [
+            {"ObjectIdentifier": dsid + "-1105",
+             "Properties": {"name": "JDOE@CORP.LOCAL"}, "Aces": []}]},
+        "certtemplates.json": {"meta": {"type": "certtemplates"}, "data": [
+            {"ObjectIdentifier": "T-ESC1",
+             "Properties": {"name": "ESC1-TEMPLATE@CORP.LOCAL", "domainsid": dsid,
+                            "enrolleesuppliessubject": True, "authenticationenabled": True,
+                            "requiresmanagerapproval": False, "authorizedsignatures": 0,
+                            "ekus": ["1.3.6.1.5.5.7.3.2"]},
+             "Aces": [{"PrincipalSID": dsid + "-1105", "PrincipalType": "User",
+                       "RightName": "Enroll"}]}]},
+        "enterprisecas.json": {"meta": {"type": "enterprisecas"}, "data": [
+            {"ObjectIdentifier": "CA-1",
+             "Properties": {"name": "CORP-CA@CORP.LOCAL", "domainsid": dsid},
+             "Aces": [],
+             "EnabledCertTemplates": [{"ObjectIdentifier": "T-ESC1", "ObjectType": "CertTemplate"}]}]},
+    }
+    zpath = _bh_zip(export)
+    try:
+        g = load_graph(zpath)
+    finally:
+        os.remove(zpath)
+
+    # ESC1 escalation edge: enrolling principal -> Domain Admins (RID 512).
+    assert g.has_edge(dsid + "-1105", dsid + "-512")
+    assert "ADCSESC1" in g[dsid + "-1105"][dsid + "-512"]["edge_types"]
+    assert g.graph.get("adcs_edges_synthesized", 0) >= 1
+
+    # And it is routable to the Domain Admins objective in one hop.
+    annotate(g, load_corpus())
+    src = find_node(g, "jdoe")
+    dst = find_node(g, "Domain Admins")
+    paths = solve(g, src, dst, k=3)
+    assert paths and paths[0].edges[0]["edge_type"] == "ADCSESC1"
+
+
+def test_adcs_manager_approval_blocks_esc1():
+    # Same template but with manager approval required -> no ESC1 edge.
+    dsid = "S-1-5-21-2"
+    export = {
+        "domains.json": {"meta": {"type": "domains"}, "data": [
+            {"ObjectIdentifier": dsid, "Properties": {"name": "CORP2.LOCAL", "domainsid": dsid}}]},
+        "certtemplates.json": {"meta": {"type": "certtemplates"}, "data": [
+            {"ObjectIdentifier": "T2",
+             "Properties": {"name": "T2@CORP2.LOCAL", "domainsid": dsid,
+                            "enrolleesuppliessubject": True, "authenticationenabled": True,
+                            "requiresmanagerapproval": True, "authorizedsignatures": 0,
+                            "ekus": ["1.3.6.1.5.5.7.3.2"]},
+             "Aces": [{"PrincipalSID": dsid + "-1200", "PrincipalType": "User", "RightName": "Enroll"}]}]},
+        "enterprisecas.json": {"meta": {"type": "enterprisecas"}, "data": [
+            {"ObjectIdentifier": "CA2", "Properties": {"name": "CA2@CORP2.LOCAL", "domainsid": dsid},
+             "Aces": [], "EnabledCertTemplates": [{"ObjectIdentifier": "T2", "ObjectType": "CertTemplate"}]}]},
+    }
+    zpath = _bh_zip(export)
+    try:
+        g = load_graph(zpath)
+    finally:
+        os.remove(zpath)
+    # No escalation edge because manager approval gates the abuse.
+    assert not g.has_edge(dsid + "-1200", dsid)
+    assert not g.has_edge(dsid + "-1200", dsid + "-512")
+
+
+def test_solver_scales_to_a_few_thousand_nodes():
+    # Layered DAG, ~2000 nodes, each layer fully connected to the next by a low
+    # branching factor. Confirms the solver returns promptly at scale.
+    import time
+    doc_nodes = []
+    doc_edges = []
+    layers = 200
+    width = 10
+    for L in range(layers):
+        for w in range(width):
+            doc_nodes.append({"id": "n_%d_%d" % (L, w), "name": "n_%d_%d" % (L, w)})
+    for L in range(layers - 1):
+        for w in range(width):
+            for w2 in range(0, width, 5):  # branching factor 2
+                doc_edges.append({"source": "n_%d_%d" % (L, w),
+                                  "target": "n_%d_%d" % (L + 1, w2),
+                                  "edge_type": "AdminTo"})
+    tmp = os.path.join(ROOT, "samples", "_tmp_scale.json")
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump({"nodes": doc_nodes, "edges": doc_edges}, fh)
+    try:
+        g = load_graph(tmp)
+        annotate(g, load_corpus())
+        # A small time budget makes the k-shortest pass self-bound, so this is
+        # deterministic across machines (the threshold sweep still guarantees a
+        # correct answer). The generous wall only catches a true runaway/hang.
+        start = time.time()
+        paths = solve(g, "n_0_0", "n_199_0", k=5,
+                      config=ScoringConfig(candidate_paths=25, time_budget_s=3.0))
+        elapsed = time.time() - start
+    finally:
+        os.remove(tmp)
+    assert paths, "expected a path across the layered graph"
+    assert elapsed < 30.0, "solver did not respect its time budget: %.1fs" % elapsed
+
+
+def test_calibration_high_detection_raises_score():
+    from noisehound.calibrate import calibrate_observation
+    # 4/4 detections at high severity, well sampled -> score climbs toward ~85.
+    rec = calibrate_observation(
+        {"edge_type": "HasSession", "runs": 4, "detections": 4, "severity": "high"},
+        static_score=20.0,
+    )
+    assert rec["detection_rate"] == 1.0
+    # Climbs substantially from the static 20, but 4 runs of shrinkage keep it
+    # short of the full 85 loudness - honest about sample size.
+    assert rec["calibrated_score"] > 50
+    assert rec["calibrated_score"] < 85
+    assert rec["delta"] > 0
+
+
+def test_calibration_no_detection_lowers_score():
+    from noisehound.calibrate import calibrate_observation
+    # 0/5 detections -> lab says quiet; score drops from the static estimate.
+    rec = calibrate_observation(
+        {"edge_type": "Kerberoast", "runs": 5, "detections": 0, "severity": "medium"},
+        static_score=60.0,
+    )
+    assert rec["detection_rate"] == 0.0
+    assert rec["calibrated_score"] < 60
+    assert rec["delta"] < 0
+
+
+def test_calibration_shrinks_toward_corpus_with_few_runs():
+    from noisehound.calibrate import calibrate_observation
+    # A single run should not swing the score far from the static estimate.
+    one = calibrate_observation(
+        {"edge_type": "X", "runs": 1, "detections": 1, "severity": "critical"},
+        static_score=30.0,
+    )
+    many = calibrate_observation(
+        {"edge_type": "X", "runs": 40, "detections": 40, "severity": "critical"},
+        static_score=30.0,
+    )
+    assert many["calibrated_score"] > one["calibrated_score"]
+    assert one["confidence_weight"] < many["confidence_weight"]
+
+
+def test_calibration_end_to_end_and_roundtrip():
+    from noisehound.calibrate import calibrate
+    from noisehound.environment import EnvironmentProfile
+    detections = {
+        "environment": "lab",
+        "object_auditing_4662": True,
+        "observations": [
+            {"edge_type": "DCSync", "runs": 3, "detections": 3, "severity": "high"},
+            {"edge_type": "AdminTo", "runs": 8, "detections": 1, "severity": "low"},
+        ],
+    }
+    profile_dict, records = calibrate(detections, load_corpus())
+    assert profile_dict["object_auditing_4662"] is True  # posture passed through
+    assert set(profile_dict["adjustments"]) == {"DCSync", "AdminTo"}
+    assert len(records) == 2
+
+    # The emitted profile must drive annotate as a real environment profile.
+    prof = EnvironmentProfile.from_dict(profile_dict)
+    g = _annotated([("P", "DOM", "DCSync")])
+    annotate(g, load_corpus(), environment=prof)
+    assert g["P"]["DOM"]["effective_noise_score"] == profile_dict["adjustments"]["DCSync"]
+
+
+def test_corpus_validator_passes_clean():
+    from noisehound.validate import validate_corpus
+    errors, warnings, checked = validate_corpus(
+        os.path.join(ROOT, "edge_mappings"))
+    assert checked >= 40
+    assert errors == []
+
+
+def test_corpus_validator_catches_bad_files(tmp_path=None):
+    from noisehound.validate import validate_corpus
+    import tempfile
+    d = tempfile.mkdtemp()
+    try:
+        # filename does not match edge_type + out-of-range score.
+        with open(os.path.join(d, "Wrong.json"), "w", encoding="utf-8") as fh:
+            json.dump({"edge_type": "Different", "static_noise_score": 999,
+                       "telemetry": []}, fh)
+        errors, warnings, checked = validate_corpus(d)
+        assert checked == 1
+        assert errors  # both the score range and the filename mismatch
+    finally:
+        import shutil
+        shutil.rmtree(d)
+
+
+def test_calibrate_template_covers_every_edge():
+    from noisehound.calibrate import build_template
+    corpus = load_corpus()
+    tmpl = build_template(corpus)
+    edges = {o["edge_type"] for o in tmpl["observations"]}
+    assert "DCSync" in edges and "ADCSESC1" in edges
+    assert len(edges) == len(corpus)
+
+
+def test_solver_respects_time_budget():
+    # A tiny time budget must not prevent a correct answer (threshold sweep is
+    # always run) and must return promptly.
+    g = load_graph(SAMPLE)
+    annotate(g, load_corpus())
+    cfg = ScoringConfig(time_budget_s=0.001)
+    paths = solve(g, find_node(g, "jdoe"), find_node(g, "Domain Admins"), config=cfg)
+    assert paths and paths[0].hop_count == 4
+
+
+def test_multidomain_objective_is_disambiguable():
+    from noisehound.ingest import find_matches
+    # Two forests, each with its own Domain Admins group.
+    doc = {
+        "nodes": [
+            {"id": "S-A-512", "name": "Domain Admins@CONTOSO.LOCAL", "type": "Group"},
+            {"id": "S-B-512", "name": "Domain Admins@FABRIKAM.LOCAL", "type": "Group"},
+            {"id": "S-A-1", "name": "jdoe@CONTOSO.LOCAL", "type": "User"},
+        ],
+        "edges": [{"source": "S-A-1", "target": "S-A-512", "edge_type": "MemberOf"}],
+    }
+    tmp = os.path.join(ROOT, "samples", "_tmp_multidomain.json")
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(doc, fh)
+    try:
+        g = load_graph(tmp)
+    finally:
+        os.remove(tmp)
+    # Bare name is ambiguous across the two forests...
+    assert len(find_matches(g, "Domain Admins")) == 2
+    # ...but the @DOMAIN-qualified name resolves to exactly one.
+    assert find_node(g, "Domain Admins@FABRIKAM.LOCAL") == "S-B-512"
+
+
+def test_inspect_summary():
+    from noisehound.inspect import summarise
+    g = load_graph(SAMPLE)
+    s = summarise(g, load_corpus())
+    assert s["nodes"]["total"] == 9
+    assert s["edges"]["total"] >= 10
+    assert "SyncedToEntraUser" in s["corpus_coverage"]["unknown_types"]
+    assert s["loudest_edge_types"][0]["effective_noise"] >= s["quietest_edge_types"][0]["effective_noise"]
+
+
+def test_fullspectrum_sample_exercises_every_family():
+    # The shipped full-spectrum fixture must parse every edge family the parser
+    # and ADCS synthesis produce - guards all collection handlers at once, since
+    # real exports may only contain a subset (e.g. ACL/ADCS-only collections).
+    g = load_graph(os.path.join(ROOT, "samples", "sample_fullspectrum_ce.zip"))
+    annotate(g, load_corpus())
+    present = set()
+    for _, _, d in g.edges(data=True):
+        present.update(d.get("edge_types", []))
+    expected = {
+        "MemberOf", "GenericWrite", "AdminTo", "HasSession", "CanRDP",
+        "CanPSRemote", "ExecuteDCOM", "AllowedToDelegate", "AllowedToAct",
+        "DCSync", "CrossForestTrust", "Enroll", "ADCSESC1",
+    }
+    missing = expected - present
+    assert not missing, "full-spectrum fixture missing families: %s" % sorted(missing)
+
+
+def test_inspect_reports_adcs_synthesis():
+    from noisehound.inspect import summarise
+    g = load_graph(os.path.join(ROOT, "samples", "sample_adcs_ce.zip"))
+    s = summarise(g, load_corpus())
+    assert s["adcs_edges_synthesized"] >= 1
+    assert "ADCSESC1" in s["edges"]["by_type"]
+
+
+def test_defensive_detection_gap_analysis():
+    from noisehound.defend import analyse
+    g = load_graph(SAMPLE)
+    corpus = load_corpus()
+    annotate(g, corpus)
+    paths = solve(g, find_node(g, "jdoe"), find_node(g, "Domain Admins"), k=3)
+    report = analyse(g, corpus, paths)
+    assert report["paths"]
+    # The quietest path relies on quiet-by-default edges, so full instrumentation
+    # must lift its score, and at least one closable gap must be found.
+    top = report["paths"][0]
+    assert top["instrumented_path_score"] >= top["current_path_score"]
+    assert any(e["detection_gap"] > 0 for e in top["edges"])
+    # HasSession (quiet token theft by default) should recommend a Sysmon control.
+    assert report["recommended_controls"]
+    assert any("Sysmon" in rc["control"] for rc in report["recommended_controls"])
+
+
+def test_neo4j_live_path_with_mock_driver():
+    # Exercises load_graph_from_neo4j end to end (query -> records -> graph) with
+    # a fake driver, so the Bolt path is validated without a running server.
+    import neo4j
+    from noisehound.neo4j_ingest import load_graph_from_neo4j
+
+    class FakeRecord(dict):
+        pass
+
+    class FakeSession:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def run(self, query):
+            if "labels(n)" in query:
+                return [
+                    FakeRecord(oid="S-1", labels=["Base", "User"], name="jdoe@CONTOSO.LOCAL"),
+                    FakeRecord(oid="S-512", labels=["Base", "Group"], name="Domain Admins@CONTOSO.LOCAL"),
+                ]
+            return [FakeRecord(source="S-1", target="S-512", rtype="GenericAll")]
+
+    class FakeDriver:
+        def session(self, database=None): return FakeSession()
+        def close(self): pass
+
+    orig = neo4j.GraphDatabase.driver
+    neo4j.GraphDatabase.driver = staticmethod(lambda uri, auth=None: FakeDriver())
+    try:
+        g = load_graph_from_neo4j("bolt://localhost:7687", "neo4j", "x")
+    finally:
+        neo4j.GraphDatabase.driver = orig
+    assert g.number_of_nodes() == 2
+    assert g.nodes["S-1"]["type"] == "User"
+    assert g["S-1"]["S-512"]["edge_type"] == "GenericAll"
+
+
+def test_writeback_builds_rows_and_runs_with_mock_driver():
+    import neo4j
+    from noisehound.writeback import write_scores
+    g = _annotated([("S-1", "S-2", "GenericAll"), ("S-2", "S-512", "MemberOf")])
+    captured = {}
+
+    class FakeResult:
+        def __init__(self, n): self.n = n
+        def single(self): return {"c": self.n}
+
+    class FakeSession:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def run(self, cypher, rows=None):
+            captured["cypher"] = cypher
+            captured["rows"] = rows
+            return FakeResult(len(rows))
+
+    class FakeDriver:
+        def session(self, database=None): return FakeSession()
+        def close(self): pass
+
+    orig = neo4j.GraphDatabase.driver
+    neo4j.GraphDatabase.driver = staticmethod(lambda uri, auth=None: FakeDriver())
+    try:
+        updated, attempted = write_scores(g, "bolt://localhost:7687", "neo4j", "x")
+    finally:
+        neo4j.GraphDatabase.driver = orig
+    assert attempted == 2 and updated == 2
+    assert "SET r.noise" in captured["cypher"]
+    row = next(r for r in captured["rows"] if r["et"] == "GenericAll")
+    assert row["s"] == "S-1" and row["t"] == "S-2" and row["n"] == 40.0
+
+
+def test_neo4j_record_to_graph():
+    from noisehound.neo4j_ingest import build_graph_from_records, is_bolt_uri
+    assert is_bolt_uri("bolt://localhost:7687")
+    assert is_bolt_uri("neo4j+s://host:7687")
+    assert not is_bolt_uri("export.zip")
+    nodes = [
+        {"oid": "S-1", "labels": ["Base", "User"], "name": "jdoe@CONTOSO.LOCAL"},
+        {"oid": "S-512", "labels": ["Base", "Group"], "name": "Domain Admins@CONTOSO.LOCAL"},
+        {"oid": "S-2", "labels": ["Base", "User"], "name": "svc@CONTOSO.LOCAL"},
+    ]
+    rels = [
+        {"source": "S-1", "target": "S-2", "rtype": "GenericAll"},
+        {"source": "S-2", "target": "S-512", "rtype": "MemberOf"},
+    ]
+    g = build_graph_from_records(nodes, rels)
+    assert g.number_of_nodes() == 3
+    assert g.nodes["S-1"]["type"] == "User"           # most specific label wins over Base
+    assert g["S-1"]["S-2"]["edge_type"] == "GenericAll"
+    # And it flows through annotate + solve like any other graph.
+    annotate(g, load_corpus())
+    paths = solve(g, "S-1", "S-512", k=1)
+    assert paths and paths[0].hop_count == 2
+
+
+def test_sigma_coverage_is_conservative():
+    from noisehound.sigma import parse_rules, compute_coverage
+    rules = parse_rules(os.path.join(ROOT, "samples", "sigma_rules"))
+    assert len(rules) == 2
+    cov = compute_coverage(load_corpus(), rules)
+    # DCSync is covered by the replication rule (event 4662 + technique t1003.006).
+    assert cov["DCSync"]["score"] == 85
+    assert cov["DCSync"]["match"] == "event_id+technique"
+    assert cov["AddMember"]["score"] == 70
+    # Fail-safe: LAPS read and GenericAll also touch 4662 but the rule is scoped
+    # to a different technique, so they must NOT be reported as covered.
+    assert "ReadLAPSPassword" not in cov
+    assert "GenericAll" not in cov
+    # ForceChangePassword shares technique t1098 with the group rule but not its
+    # event IDs, so a shared technique alone must not count as coverage.
+    assert "ForceChangePassword" not in cov
+
+
+def test_sigma_profile_roundtrips_into_scoring():
+    from noisehound.sigma import parse_rules, compute_coverage, to_environment_profile
+    from noisehound.environment import EnvironmentProfile
+    rules = parse_rules(os.path.join(ROOT, "samples", "sigma_rules"))
+    profile = to_environment_profile(compute_coverage(load_corpus(), rules))
+    assert profile["adjustments"]["DCSync"] == 85
+    # The emitted profile must drive annotate: a covered edge gets raised.
+    prof = EnvironmentProfile.from_dict(profile)
+    g = _annotated([("P", "DOM", "DCSync")])
+    annotate(g, load_corpus(), environment=prof)
+    assert g["P"]["DOM"]["effective_noise_score"] == 85
+
+
+def test_path_detection_probability_model():
+    from noisehound.probability import path_detection_probability, score_to_probability
+    cfg = ScoringConfig(correlation=0.5)
+    assert score_to_probability(30) == 0.3
+    # Two quiet edges (p=0.2): noisy-OR=0.36, loudest=0.2 -> 0.5*0.2+0.5*0.36=0.28
+    two = path_detection_probability([20, 20], cfg)
+    assert round(two, 3) == 0.28
+    # A longer all-quiet path has HIGHER detection probability (cumulative
+    # exposure) even though every edge is individually quiet.
+    four = path_detection_probability([20, 20, 20, 20], cfg)
+    assert four > two
+    assert path_detection_probability([], cfg) == 0.0
+
+
+def test_solver_reports_and_can_rank_by_probability():
+    g = load_graph(SAMPLE)
+    annotate(g, load_corpus())
+    src, dst = find_node(g, "jdoe"), find_node(g, "Domain Admins")
+    by_noise = solve(g, src, dst, k=5)
+    assert all(0.0 <= p.detection_probability <= 1.0 for p in by_noise)
+    assert "detection_probability" in by_noise[0].to_dict()
+    by_prob = solve(g, src, dst, k=5, rank_by="probability")
+    probs = [p.detection_probability for p in by_prob]
+    assert probs == sorted(probs)  # ascending when ranking by probability
+
+
+def test_correlation_bounds_validated():
+    try:
+        ScoringConfig(correlation=1.5).validate()
+    except ValueError:
+        return
+    raise AssertionError("expected ValueError for correlation out of range")
+
+
+def test_pareto_frontier_keeps_tradeoffs():
+    from noisehound.solver import solve_pareto
+    g = load_graph(os.path.join(ROOT, "samples", "sample_fullspectrum_ce.zip"))
+    annotate(g, load_corpus())
+    src, dst = find_node(g, "ALICE"), find_node(g, "Domain Admins")
+    front = solve_pareto(g, src, dst)
+    assert front
+    # The 4-hop quiet session path (low noise) and the 1-hop loud ADCS path
+    # (fewest hops) are both non-dominated, so both are on the frontier.
+    hop_counts = {p.hop_count for p in front}
+    assert 4 in hop_counts and 1 in hop_counts
+    # No frontier path dominates another on all three objectives.
+    items = [(p.path_score, p.hop_count, p.detection_probability) for p in front]
+    for a in items:
+        for b in items:
+            if a is b:
+                continue
+            assert not (b[0] <= a[0] and b[1] <= a[1] and b[2] <= a[2]
+                        and (b[0] < a[0] or b[1] < a[1] or b[2] < a[2]))
+
+
+def test_constraints_avoid_node_and_edge_type():
+    from noisehound.constraints import apply_constraints
+    from noisehound.solver import solve
+    g = load_graph(os.path.join(ROOT, "samples", "sample_fullspectrum_ce.zip"))
+    src, dst = find_node(g, "ALICE"), find_node(g, "Domain Admins")
+
+    # Baseline quietest path routes through WS01 via a session.
+    annotate(g, load_corpus())
+    base = solve(g, src, dst, k=1)[0]
+    assert any(e["edge_type"] == "HasSession" for e in base.edges)
+
+    # Avoid the HasSession edge type -> the solver must find another route.
+    ws01 = find_node(g, "WS01")
+    h = apply_constraints(g, avoid_edge_types={"HasSession"}, keep_nodes={src, dst})
+    annotate(h, load_corpus())
+    alt = solve(h, src, dst, k=1)
+    assert alt and not any(e["edge_type"] == "HasSession" for e in alt[0].edges)
+
+    # Avoid WS01 entirely -> it must not appear on any returned path.
+    h2 = apply_constraints(g, avoid_nodes={ws01}, keep_nodes={src, dst})
+    assert ws01 not in h2
+    annotate(h2, load_corpus())
+    for p in solve(h2, src, dst, k=5):
+        names = [e["from"] for e in p.edges] + [p.edges[-1]["to"]]
+        assert "WS01@CONTOSO.LOCAL" not in names
+
+
+def test_ingest_robust_to_malformed_input():
+    # Malformed / partial BloodHound data must be tolerated, not crash: null
+    # data arrays, nodes without ObjectIdentifier, ACEs missing fields, empty
+    # results collections. Ingest should keep what it can.
+    export = {
+        "domains.json": {"meta": {"type": "domains"}, "data": None},  # null data
+        "groups.json": {"meta": {"type": "groups"}, "data": [
+            {"Properties": {"name": "NOID@X"}},                        # no ObjectIdentifier -> skipped
+            {"ObjectIdentifier": "S-G1", "Properties": {"name": "G1@X"},
+             "Members": [{"ObjectType": "User"}, {"ObjectIdentifier": "S-U1"}]},  # member missing id
+            {"ObjectIdentifier": "S-G2", "Aces": [
+                {"RightName": "GenericAll"},                            # ace missing PrincipalSID
+                {"PrincipalSID": "S-U1", "RightName": "GenericAll"}]},
+        ]},
+        "computers.json": {"meta": {"type": "computers"}, "data": [
+            {"ObjectIdentifier": "S-C1", "Properties": {"name": "C1@X"},
+             "Sessions": {"Results": None}, "LocalAdmins": {}}]},        # null/empty collections
+    }
+    zpath = _bh_zip(export)
+    try:
+        g = load_graph(zpath)
+    finally:
+        os.remove(zpath)
+    # Kept the well-formed relationships, dropped the malformed ones, no crash.
+    assert g.has_edge("S-U1", "S-G1")   # valid member
+    assert g.has_edge("S-U1", "S-G2")   # valid ACE
+    assert "S-C1" in g
+
+
+def test_empty_and_bad_inputs_raise_cleanly():
+    import zipfile as _zf
+    # Zip with no JSON -> clean ValueError, not a traceback.
+    p = os.path.join(ROOT, "samples", "_tmp_empty.zip")
+    with _zf.ZipFile(p, "w") as z:
+        z.writestr("readme.txt", "not json")
+    try:
+        raised = False
+        try:
+            load_graph(p)
+        except ValueError:
+            raised = True
+        assert raised
+    finally:
+        os.remove(p)
+
+
+def test_kerberoast_asrep_synthesis():
+    dsid = "S-1-5-21-9"
+    export = {
+        "domains.json": {"meta": {"type": "domains"}, "data": [
+            {"ObjectIdentifier": dsid, "Properties": {"name": "CORP", "domainsid": dsid}}]},
+        "groups.json": {"meta": {"type": "groups"}, "data": [
+            {"ObjectIdentifier": dsid + "-513", "Properties": {"name": "DOMAIN USERS@CORP"},
+             "Aces": [], "Members": []}]},
+        "users.json": {"meta": {"type": "users"}, "data": [
+            {"ObjectIdentifier": dsid + "-1", "Properties": {"name": "SVC_SQL@CORP", "hasspn": True}, "Aces": []},
+            {"ObjectIdentifier": dsid + "-2", "Properties": {"name": "NOPREAUTH@CORP", "dontreqpreauth": True}, "Aces": []},
+            {"ObjectIdentifier": dsid + "-502", "Properties": {"name": "KRBTGT@CORP", "hasspn": True}, "Aces": []},
+        ]},
+    }
+    zpath = _bh_zip(export)
+    try:
+        g = load_graph(zpath)
+    finally:
+        os.remove(zpath)
+    assert g.has_edge(dsid + "-513", dsid + "-1")
+    assert g[dsid + "-513"][dsid + "-1"]["edge_type"] == "Kerberoast"
+    assert g[dsid + "-513"][dsid + "-2"]["edge_type"] == "ASREPRoast"
+    # krbtgt carries an SPN but must be excluded.
+    assert not g.has_edge(dsid + "-513", dsid + "-502")
+
+
+def test_ingest_reads_privileged_and_registry_sessions():
+    # BloodHound CE splits sessions across Sessions / PrivilegedSessions /
+    # RegistrySessions; LoggedOn (interactive) logons land in the latter two.
+    # All must become HasSession edges (regression from a real loop export).
+    export = {"computers.json": {"meta": {"type": "computers"}, "data": [{
+        "ObjectIdentifier": "S-WS1",
+        "Properties": {"name": "WS1@CORP"}, "Aces": [],
+        "Sessions": {"Collected": True, "Results": []},
+        "PrivilegedSessions": {"Collected": True, "Results": [
+            {"UserSID": "S-U1", "ComputerSID": "S-WS1"}]},
+        "RegistrySessions": {"Collected": True, "Results": [
+            {"UserSID": "S-U2", "ComputerSID": "S-WS1"}]},
+    }]}}
+    zpath = _bh_zip(export)
+    try:
+        g = load_graph(zpath)
+    finally:
+        os.remove(zpath)
+    assert g.has_edge("S-WS1", "S-U1")  # from PrivilegedSessions
+    assert g.has_edge("S-WS1", "S-U2")  # from RegistrySessions
+    assert g["S-WS1"]["S-U1"]["edge_type"] == "HasSession"
+
+
+def test_ingest_tolerates_utf8_bom_in_zip():
+    # Real SharpHound / BloodHound CE exports sometimes write JSON with a UTF-8
+    # BOM; ingest must strip it rather than choke (regression from a real export).
+    doc = {"meta": {"type": "users"},
+           "data": [{"ObjectIdentifier": "S-1", "Properties": {"name": "A@X"}, "Aces": []}]}
+    raw = ("﻿" + json.dumps(doc)).encode("utf-8")  # explicit BOM prefix
+    path = os.path.join(ROOT, "samples", "_tmp_bom.zip")
+    with zipfile.ZipFile(path, "w") as z:
+        z.writestr("users.json", raw)
+    try:
+        g = load_graph(path)
+    finally:
+        os.remove(path)
+    assert g.number_of_nodes() == 1
+
+
+def test_emit_scored_graph():
+    from noisehound.engine import emit_scored_graph
+    g = load_graph(os.path.join(ROOT, "samples", "sample_fullspectrum_ce.zip"))
+    annotate(g, load_corpus())
+    sg = emit_scored_graph(g)
+    assert len(sg["nodes"]) == g.number_of_nodes()
+    assert len(sg["edges"]) == g.number_of_edges()
+    e = sg["edges"][0]
+    assert {"source", "target", "edge_type", "noise", "corpus_known"} <= set(e)
+    assert isinstance(e["noise"], (int, float))
+
+
+def test_deadair_engine_matches_python():
+    # Only runs if the DeadAir binary is present; otherwise treated as a pass.
+    from noisehound.engine import find_deadair, solve_with_deadair
+    binary = find_deadair()
+    if not binary:
+        return  # DeadAir not built here; skip
+    g = load_graph(os.path.join(ROOT, "samples", "sample_fullspectrum_ce.zip"))
+    annotate(g, load_corpus())
+    src, dst = find_node(g, "ALICE"), find_node(g, "Domain Admins")
+    py = solve(g, src, dst, k=5)
+    rs = solve_with_deadair(binary, g, src, dst, 5, ScoringConfig())
+    assert len(rs) == len(py)
+    for a, b in zip(py, rs):
+        assert round(a.path_score, 1) == round(b.path_score, 1)
+        assert a.hop_count == b.hop_count
+        assert [e["edge_type"] for e in a.edges] == [e["edge_type"] for e in b.edges]
+
+
+def _run_all():
+    fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
+    failed = 0
+    for fn in fns:
+        try:
+            fn()
+            print("PASS %s" % fn.__name__)
+        except Exception as exc:  # noqa: BLE001
+            failed += 1
+            print("FAIL %s: %s" % (fn.__name__, exc))
+    print("\n%d/%d passed" % (len(fns) - failed, len(fns)))
+    return failed
+
+
+if __name__ == "__main__":
+    sys.exit(1 if _run_all() else 0)

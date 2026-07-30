@@ -1,0 +1,25 @@
+{
+  "edge_type": "ASREPRoast",
+  "description": "Request an AS-REP for an account with Kerberos pre-authentication disabled and crack it offline to recover the password.",
+  "static_noise_score": 30,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 4768,
+      "detail": "Kerberos AS-REQ / TGT request without pre-authentication for the target account; the encrypted AS-REP is the crackable material.",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4771,
+      "detail": "Kerberos pre-authentication activity; enumerating DONT_REQ_PREAUTH accounts precedes the roast.",
+      "reliability": "low",
+      "default_enabled": true
+    }
+  ],
+  "mitre_technique": "T1558.004",
+  "prerequisite_privilege": "None for the request against a pre-auth-disabled account; enumeration needs a domain user",
+  "abuse_primitive": "Rubeus asreproast, then hashcat -m 18200 offline.",
+  "notes": "Only works against accounts with DONT_REQ_PREAUTH set (a misconfiguration). Quiet by default; cracking is offline. The pre-auth-disabled state is itself the finding."
+}

@@ -1,0 +1,22 @@
+{
+  "edge_type": "CrossForestTrust",
+  "description": "Trust between separate forests; SID filtering usually constrains what crosses.",
+  "static_noise_score": 18,
+  "telemetry": [
+    {
+      "source": "network",
+      "detail": "Inter-forest Kerberos referrals; unusual cross-forest auth can be baselined.",
+      "reliability": "low"
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Cross-forest access from a non-typical principal is more noteworthy than intra-forest, and SID filtering blocks many escalations.",
+      "reliability": "medium"
+    }
+  ],
+  "mitre_technique": "T1482",
+  "prerequisite_privilege": "None to traverse; escalation depends on SID-filter posture",
+  "abuse_primitive": "Traverse the trust; abuse foreign-principal ACLs or (where SID filtering is relaxed) SIDHistory.",
+  "notes": "Slightly higher than same-forest because cross-forest movement is rarer and more likely baselined."
+}

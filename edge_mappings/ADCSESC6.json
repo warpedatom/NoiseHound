@@ -1,0 +1,38 @@
+{
+  "edge_type": "ADCSESC6",
+  "description": "CA has EDITF_ATTRIBUTESUBJECTALTNAME2 set, so any enrollable client-auth template becomes SAN-spoofable (ESC1-like).",
+  "static_noise_score": 50,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 4886,
+      "detail": "Certificate Services received a certificate request (on the CA).",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4887,
+      "detail": "Certificate Services issued a certificate (on the CA). - issued cert carries an attacker-supplied SAN despite the template not allowing it.",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4768,
+      "detail": "PKINIT TGT request using the issued certificate - certificate-logon anomaly.",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "The EDITF flag plus a SAN that the template did not authorise is a high-fidelity misconfiguration tell.",
+      "reliability": "high"
+    }
+  ],
+  "mitre_technique": "T1649",
+  "prerequisite_privilege": "Enrollment on any client-auth template published on the misconfigured CA",
+  "abuse_primitive": "Request a client-auth cert supplying a Domain Admin SAN; the CA honours it due to the EDITF flag.",
+  "notes": "The vulnerability lives on the CA, not the template, so it applies broadly. Slightly louder than ESC1 because the SAN-vs-template mismatch is unusually clear in CA logs."
+}

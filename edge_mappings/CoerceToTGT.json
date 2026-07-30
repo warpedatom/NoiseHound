@@ -1,0 +1,29 @@
+{
+  "edge_type": "CoerceToTGT",
+  "description": "Coerce a computer with unconstrained delegation to authenticate, capturing its TGT for reuse.",
+  "static_noise_score": 55,
+  "telemetry": [
+    {
+      "source": "network",
+      "detail": "Coercion RPC (MS-EFSR/MS-RPRN) to the victim, then the victim authenticates to the attacker-controlled unconstrained-delegation host.",
+      "reliability": "medium"
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4768,
+      "detail": "TGT issued to the coerced computer account.",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "MDI",
+      "detail": "Unconstrained-delegation TGT capture (Rubeus monitor + coercion) is a recognised chain, modelled by MDI.",
+      "reliability": "high"
+    }
+  ],
+  "mitre_technique": "T1187",
+  "prerequisite_privilege": "Control of an unconstrained-delegation host + ability to coerce the target",
+  "abuse_primitive": "Rubeus monitor on the delegation host, coerce the target (SpoolSample/PetitPotam), extract the captured TGT.",
+  "notes": "Coercion traffic plus a computer-account TGT to an unusual host is a strong signal, especially with MDI."
+}

@@ -1,0 +1,38 @@
+{
+  "edge_type": "AddMember",
+  "description": "Ability to add members to a group; add a controlled principal to a privileged group.",
+  "static_noise_score": 35,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 4728,
+      "detail": "Member added to a security-enabled GLOBAL group - enabled by default in Security log.",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4732,
+      "detail": "Member added to a security-enabled LOCAL group.",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4756,
+      "detail": "Member added to a security-enabled UNIVERSAL group.",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Privileged-group membership changes are a top-tier SOC alert; sensitive groups (Domain Admins, etc.) are almost always watched.",
+      "reliability": "high"
+    }
+  ],
+  "mitre_technique": "T1098",
+  "prerequisite_privilege": "WriteProperty on the group 'member' attribute (or GenericAll/GenericWrite)",
+  "abuse_primitive": "Add controlled user to the target group.",
+  "notes": "4728/4732/4756 are ON by default, unlike the 4662/5136 family. Adding to a flagged group (Domain Admins, Enterprise Admins) is close to guaranteed detection - bump to 70+ for tier-0 groups."
+}

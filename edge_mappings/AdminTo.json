@@ -1,0 +1,31 @@
+{
+  "edge_type": "AdminTo",
+  "description": "Principal is local administrator on the computer; enables lateral movement to it.",
+  "static_noise_score": 25,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 4624,
+      "detail": "Successful network logon (type 3) on the target for SMB/WMI/WinRM movement.",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 7045,
+      "detail": "New service installed - fires for PsExec-style movement (the loudest option).",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Noise depends entirely on the movement method: token/WinRM is medium, PsExec service creation is high.",
+      "reliability": "medium"
+    }
+  ],
+  "mitre_technique": "T1021",
+  "prerequisite_privilege": "Local Administrators membership on target",
+  "abuse_primitive": "Lateral movement via WinRM (quieter) / WMI / SMB / PsExec (loudest, 7045).",
+  "notes": "Score assumes a quieter method (WinRM/WMI). PsExec pushes it toward 55 via Event 7045. AdminTo is the right, not the act - the chosen technique sets the cost."
+}

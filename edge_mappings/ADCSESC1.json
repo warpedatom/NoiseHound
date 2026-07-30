@@ -1,0 +1,38 @@
+{
+  "edge_type": "ADCSESC1",
+  "description": "Enroll in a misconfigured certificate template (client-auth EKU + enrollee-supplies-subject) to obtain a cert as any user.",
+  "static_noise_score": 45,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 4886,
+      "detail": "Certificate Services received a certificate request (on the CA).",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4887,
+      "detail": "Certificate Services approved and issued a certificate (on the CA).",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4768,
+      "detail": "PKINIT TGT request using the issued certificate - certificate logon anomaly.",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "CA request/issue events are logged on the CA by default; the SAN-vs-requester mismatch is the tell. Certify/Certipy usage patterns are modelled by newer ITDR.",
+      "reliability": "medium"
+    }
+  ],
+  "mitre_technique": "T1649",
+  "prerequisite_privilege": "Enrollment rights on a vulnerable (ESC1) template",
+  "abuse_primitive": "Certipy/Certify request with an alternate SAN (target = DA), then PKINIT.",
+  "notes": "CA-side 4886/4887 are default-on and often centrally collected, so ADCS abuse is noisier than it is reputed to be where CA logs are shipped. The SAN anomaly is high-fidelity."
+}

@@ -1,0 +1,17 @@
+{
+  "edge_type": "GpLink",
+  "description": "A GPO is linked to an OU, domain, or site; the linked scope inherits the GPO's settings.",
+  "static_noise_score": 8,
+  "telemetry": [
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "The link is a standing relationship, not an action. It matters only as the reach of a controlled/abused GPO.",
+      "reliability": "low"
+    }
+  ],
+  "mitre_technique": null,
+  "prerequisite_privilege": "None - existing link",
+  "abuse_primitive": "No action; provides the blast radius for WriteGPLink / GPO control edges.",
+  "notes": "Near-zero on its own. Path danger comes from controlling the GPO at the other end of the link."
+}

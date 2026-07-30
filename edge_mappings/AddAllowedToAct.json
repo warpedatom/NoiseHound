@@ -1,0 +1,31 @@
+{
+  "edge_type": "AddAllowedToAct",
+  "description": "Write msDS-AllowedToActOnBehalfOfOtherIdentity on the target computer to configure RBCD.",
+  "static_noise_score": 45,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 5136,
+      "detail": "RBCD attribute write on the target computer - logged under DS-change auditing (default OFF).",
+      "reliability": "high_if_auditing_enabled",
+      "default_enabled": false
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4769,
+      "detail": "S4U2proxy TGS requests when the delegation is subsequently abused.",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "MDI",
+      "detail": "The RBCD attribute write plus S4U pattern is a recognised ITDR chain.",
+      "reliability": "medium"
+    }
+  ],
+  "mitre_technique": "T1558.003",
+  "prerequisite_privilege": "GenericWrite/GenericAll over the target computer object",
+  "abuse_primitive": "Write the RBCD attribute to a controlled account, then S4U to the target as admin.",
+  "notes": "The control edge that produces an AllowedToAct relationship. Quiet setup in default configs; see AllowedToAct for the delegation itself."
+}

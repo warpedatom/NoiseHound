@@ -1,0 +1,12 @@
+{
+  "_comment": "Operator-declared detection posture of the target. Pass with --environment. Every field defaults to the quietest assumption, so declaring only what you know is fine. Adjustments are hard per-edge score overrides - the place to record values you have calibrated against your own lab.",
+  "name": "CONTOSO.LOCAL-prod",
+  "object_auditing_4662": true,
+  "ds_change_auditing_5136": false,
+  "edr": "MDI",
+  "sysmon": true,
+  "powershell_logging_4104": true,
+  "adjustments": {
+    "HasSession": 65
+  }
+}

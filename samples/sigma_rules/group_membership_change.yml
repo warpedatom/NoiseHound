@@ -1,0 +1,18 @@
+title: User Added to Privileged Group
+id: 7a1c9b22-6d3e-4f88-9a12-5c6b7d8e9f00
+status: stable
+description: Detects a member being added to a security-enabled group.
+logsource:
+  product: windows
+  service: security
+detection:
+  selection:
+    EventID:
+      - 4728
+      - 4732
+      - 4756
+  condition: selection
+level: medium
+tags:
+  - attack.persistence
+  - attack.t1098

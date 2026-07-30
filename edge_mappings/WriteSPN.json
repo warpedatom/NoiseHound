@@ -1,0 +1,31 @@
+{
+  "edge_type": "WriteSPN",
+  "description": "Write the servicePrincipalName attribute of a target user to enable a targeted Kerberoast.",
+  "static_noise_score": 38,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 5136,
+      "detail": "servicePrincipalName write logged under DS-change auditing (default OFF).",
+      "reliability": "medium",
+      "default_enabled": false
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4769,
+      "detail": "TGS-REQ for the injected SPN - watch RC4 (0x17) service tickets.",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Add-SPN-then-roast-then-clear is a recognised pattern; single-SPN roast otherwise blends with TGS volume.",
+      "reliability": "medium"
+    }
+  ],
+  "mitre_technique": "T1558.003",
+  "prerequisite_privilege": "WriteProperty on the target's servicePrincipalName (or GenericWrite/GenericAll)",
+  "abuse_primitive": "Set an SPN, request its TGS, crack offline, clear the SPN.",
+  "notes": "Comparable to GenericWrite's roast path. The single targeted TGS is hard to distinguish from normal Kerberos activity."
+}

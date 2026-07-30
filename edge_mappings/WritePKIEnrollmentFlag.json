@@ -1,0 +1,39 @@
+{
+  "edge_type": "WritePKIEnrollmentFlag",
+  "description": "Write msPKI-Enrollment-Flag on a certificate template, enabling ESC-style reconfiguration.",
+  "static_noise_score": 48,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 5136,
+      "detail": "Template msPKI-Enrollment-Flag modification under DS-change auditing (default OFF).",
+      "reliability": "high_if_auditing_enabled",
+      "default_enabled": false
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4886,
+      "detail": "Certificate request logged on the CA.",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4887,
+      "detail": "Certificate issued on the CA.",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4768,
+      "detail": "PKINIT TGT request with the issued certificate.",
+      "reliability": "medium",
+      "default_enabled": true
+    }
+  ],
+  "mitre_technique": "T1649",
+  "prerequisite_privilege": "WriteProperty on the template's enrollment flag (or GenericWrite/GenericAll)",
+  "abuse_primitive": "Clear manager-approval / alter enrollment flags, then enroll (ESC4 chain).",
+  "notes": "A template-control primitive; feeds ESC4. Loud only where DS-change auditing is on."
+}

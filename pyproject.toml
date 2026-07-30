@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "noisehound"
+version = "0.6.0"
+description = "Detection-aware Active Directory attack-path scoring on top of BloodHound data"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Velkris" }]
+keywords = ["bloodhound", "active-directory", "red-team", "opsec", "detection"]
+dependencies = ["networkx>=3.0"]
+
+[project.urls]
+Homepage = "https://github.com/warpedatom/noisehound"
+Repository = "https://github.com/warpedatom/noisehound"
+Changelog = "https://github.com/warpedatom/noisehound/blob/main/CHANGELOG.md"
+
+[project.scripts]
+noisehound = "noisehound.cli:main"
+noisehound-calibrate = "noisehound.calibrate:main"
+noisehound-validate = "noisehound.validate:main"
+noisehound-inspect = "noisehound.inspect:main"
+noisehound-sigma = "noisehound.sigma:main"
+noisehound-writeback = "noisehound.writeback:main"
+
+[project.optional-dependencies]
+neo4j = ["neo4j>=5.0"]
+sigma = ["pyyaml>=6.0"]
+test = ["pytest>=7.0", "pyyaml>=6.0", "neo4j>=5.0"]
+
+[tool.setuptools]
+packages = ["noisehound"]
+
+[tool.setuptools.package-data]
+noisehound = ["../edge_mappings/*.json"]

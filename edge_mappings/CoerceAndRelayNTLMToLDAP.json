@@ -1,0 +1,36 @@
+{
+  "edge_type": "CoerceAndRelayNTLMToLDAP",
+  "description": "Coerce a victim and relay its NTLM to LDAP to write RBCD or shadow credentials.",
+  "static_noise_score": 58,
+  "telemetry": [
+    {
+      "source": "network",
+      "detail": "Authentication coercion (PetitPotam MS-EFSR, PrinterBug MS-RPRN, DFSCoerce, etc.) generates distinctive RPC traffic to the victim.",
+      "reliability": "medium"
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4624,
+      "detail": "Relayed NTLM authentication lands as a logon on the relay target.",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Coercion-plus-relay chains are heavily signatured; NTLM relay is a well-known, widely detected pattern.",
+      "reliability": "high"
+    },
+    {
+      "source": "windows_security",
+      "event_id": 5136,
+      "detail": "Directory write (msDS-AllowedToActOnBehalfOfOtherIdentity / KeyCredentialLink) via the relayed session, if DS-change auditing is on.",
+      "reliability": "high_if_auditing_enabled",
+      "default_enabled": false
+    }
+  ],
+  "mitre_technique": "T1187",
+  "prerequisite_privilege": "Network position to coerce and relay; LDAP signing not enforced",
+  "abuse_primitive": "Coerce + ntlmrelayx -t ldap://dc --delegate-access (RBCD) or shadow creds.",
+  "notes": "Requires LDAP signing/channel-binding to be unenforced. The follow-on directory write is the loud part where auditing is on."
+}

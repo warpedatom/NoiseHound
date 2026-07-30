@@ -1,0 +1,50 @@
+{
+  "edge_type": "ADCSESC8",
+  "description": "CA exposes an HTTP web-enrollment endpoint without EPA; coerce a privileged account and NTLM-relay it to enroll.",
+  "static_noise_score": 60,
+  "telemetry": [
+    {
+      "source": "network",
+      "detail": "Authentication coercion (PetitPotam/PrinterBug/etc.) generates distinctive MS-EFSR/MS-RPRN RPC traffic to the victim.",
+      "reliability": "medium"
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4624,
+      "detail": "Relayed NTLM authentication lands as a logon on the CA/web endpoint.",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4886,
+      "detail": "Certificate Services received a certificate request (on the CA).",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4887,
+      "detail": "Certificate Services issued a certificate (on the CA).",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4768,
+      "detail": "PKINIT TGT request using the issued certificate - certificate-logon anomaly.",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Coercion-plus-relay chains are heavily signatured; NTLM relay to ADCS web enrollment is a well-known, widely-detected pattern.",
+      "reliability": "high"
+    }
+  ],
+  "mitre_technique": "T1649",
+  "prerequisite_privilege": "Network position to coerce a target and relay to the CA web endpoint (no directory rights needed)",
+  "abuse_primitive": "Coerce a DC/computer account, relay to /certsrv, obtain a machine/DA-capable cert.",
+  "notes": "Loudest of the ESC set: it combines coercion RPC traffic, a relayed logon, and CA issuance. Network-side detections are mature. Requires the vulnerable HTTP endpoint."
+}

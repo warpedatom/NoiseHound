@@ -1,0 +1,50 @@
+{
+  "edge_type": "CoerceAndRelayNTLMToADCS",
+  "description": "Coerce a victim and relay its NTLM to the ADCS web enrollment endpoint to obtain a certificate (ESC8).",
+  "static_noise_score": 60,
+  "telemetry": [
+    {
+      "source": "network",
+      "detail": "Authentication coercion (PetitPotam MS-EFSR, PrinterBug MS-RPRN, DFSCoerce, etc.) generates distinctive RPC traffic to the victim.",
+      "reliability": "medium"
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4624,
+      "detail": "Relayed NTLM authentication lands as a logon on the relay target.",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Coercion-plus-relay chains are heavily signatured; NTLM relay is a well-known, widely detected pattern.",
+      "reliability": "high"
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4886,
+      "detail": "Certificate request logged on the CA.",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4887,
+      "detail": "Certificate issued on the CA.",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4768,
+      "detail": "PKINIT TGT request with the issued certificate.",
+      "reliability": "medium",
+      "default_enabled": true
+    }
+  ],
+  "mitre_technique": "T1649",
+  "prerequisite_privilege": "Network position to coerce and relay; a vulnerable HTTP enrollment endpoint",
+  "abuse_primitive": "PetitPotam + ntlmrelayx --adcs to /certsrv, obtain a machine/DA-capable cert.",
+  "notes": "Loudest of the relay family: coercion RPC + relayed logon + CA issuance all fire."
+}

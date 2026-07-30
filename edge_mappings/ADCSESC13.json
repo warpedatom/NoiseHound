@@ -1,0 +1,38 @@
+{
+  "edge_type": "ADCSESC13",
+  "description": "Issuance-policy / OID-group-link abuse (ESC13): a certificate confers membership in a linked group.",
+  "static_noise_score": 50,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 4886,
+      "detail": "Certificate request logged on the CA.",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4887,
+      "detail": "Certificate issued on the CA.",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4768,
+      "detail": "PKINIT TGT request with the issued certificate.",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "A certificate whose issuance policy links to a privileged group grants that group's access on authentication.",
+      "reliability": "medium"
+    }
+  ],
+  "mitre_technique": "T1649",
+  "prerequisite_privilege": "Enroll on a template with an issuance policy linked to a privileged group (msDS-OIDToGroupLink)",
+  "abuse_primitive": "Enroll the template; the resulting cert grants the linked group's access.",
+  "notes": "Access comes from the OID-to-group link, not the SAN - a subtler ADCS path."
+}

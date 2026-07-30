@@ -1,0 +1,17 @@
+{
+  "edge_type": "Contains",
+  "description": "OU/container hierarchy relationship (domain -> OU -> object). Structural only.",
+  "static_noise_score": 0,
+  "telemetry": [
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Pure directory structure. No abuse action is associated with traversing containment; relevant only as context for GPO/ACL edges.",
+      "reliability": "low"
+    }
+  ],
+  "mitre_technique": null,
+  "prerequisite_privilege": "None",
+  "abuse_primitive": "No action.",
+  "notes": "Zero-cost structural edge. Present so container paths do not distort scores."
+}

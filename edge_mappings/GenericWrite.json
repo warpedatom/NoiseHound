@@ -1,0 +1,31 @@
+{
+  "edge_type": "GenericWrite",
+  "description": "Write to non-protected attributes of the target; enables SPN injection, logon-script, or shadow-cred style abuse.",
+  "static_noise_score": 38,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 5136,
+      "detail": "Attribute write (servicePrincipalName, scriptPath, msDS-KeyCredentialLink) logged if DS-change auditing is enabled.",
+      "reliability": "medium",
+      "default_enabled": false
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4769,
+      "detail": "TGS request follows targeted-Kerberoast SPN injection - watch RC4 (0x17) tickets.",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Adding an SPN to enable Kerberoast, or writing msDS-KeyCredentialLink, are the usual primitives; both are increasingly modelled by EDR/ITDR.",
+      "reliability": "medium"
+    }
+  ],
+  "mitre_technique": "T1222.001",
+  "prerequisite_privilege": "Write access to target object attributes",
+  "abuse_primitive": "Targeted Kerberoast (write then clear servicePrincipalName), or AddKeyCredentialLink, or logon-script write.",
+  "notes": "Slightly quieter than GenericAll because it avoids password resets. Targeted single-SPN roast is hard to distinguish from normal TGS volume."
+}

@@ -1,0 +1,25 @@
+{
+  "_comment": "Example lab detection results, as you would compile after running attack paths through a detection range (Caldera/APT29, a Defender+MDI lab). Tag each observation by the BloodHound edge type you exercised. Feed to: noisehound-calibrate -i lab_detections.example.json -o env.json",
+  "environment": "APT29-range",
+  "object_auditing_4662": true,
+  "ds_change_auditing_5136": false,
+  "edr": "MDI",
+  "sysmon": true,
+  "powershell_logging_4104": true,
+  "observations": [
+    {"edge_type": "DCSync", "runs": 4, "detections": 4, "severity": "high",
+     "signals": ["Security 4662", "MDI: Suspected DCSync attack"]},
+    {"edge_type": "ForceChangePassword", "runs": 6, "detections": 3, "severity": "medium",
+     "signals": ["Security 4724"]},
+    {"edge_type": "AddKeyCredentialLink", "runs": 5, "detections": 1, "severity": "medium",
+     "signals": ["MDI: Suspicious certificate usage"]},
+    {"edge_type": "HasSession", "runs": 5, "detections": 4, "severity": "high",
+     "signals": ["Sysmon 10 (LSASS access)"]},
+    {"edge_type": "AdminTo", "runs": 8, "detections": 1, "severity": "low",
+     "signals": ["Security 4624 type 3"]},
+    {"edge_type": "ADCSESC1", "runs": 3, "detections": 3, "severity": "high",
+     "signals": ["Security 4886/4887 on CA", "SAN mismatch"]},
+    {"edge_type": "Kerberoast", "runs": 4, "detections": 0, "severity": "medium",
+     "signals": []}
+  ]
+}

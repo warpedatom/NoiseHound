@@ -1,0 +1,17 @@
+{
+  "edge_type": "MemberOf",
+  "description": "Principal is a member of a group; traversal grants the group's rights with no action taken.",
+  "static_noise_score": 2,
+  "telemetry": [
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Group membership is a standing relationship, not an event. Reading it via LDAP is the only observable, and only if LDAP query auditing is tuned.",
+      "reliability": "low"
+    }
+  ],
+  "mitre_technique": "T1069.002",
+  "prerequisite_privilege": "None - existing membership",
+  "abuse_primitive": "No action; the principal already holds the membership.",
+  "notes": "Effectively free to traverse. Kept near-zero so path scoring does not penalise legitimate group inheritance."
+}

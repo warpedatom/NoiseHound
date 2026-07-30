@@ -1,0 +1,26 @@
+name: publish
+
+# Publishes the wheel + sdist to PyPI on a version tag (e.g. v0.6.0).
+# Uses PyPI Trusted Publishing (OIDC) - configure the publisher on PyPI first,
+# no API token needed. Falls back to a PYPI_API_TOKEN secret if you prefer.
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # required for Trusted Publishing
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

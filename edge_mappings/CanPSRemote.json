@@ -1,0 +1,31 @@
+{
+  "edge_type": "CanPSRemote",
+  "description": "Principal can open a PowerShell Remoting (WinRM) session to the target.",
+  "static_noise_score": 40,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 4624,
+      "detail": "Network logon type 3 via WinRM.",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4104,
+      "detail": "PowerShell script block logging captures executed code if enabled.",
+      "reliability": "high_if_auditing_enabled",
+      "default_enabled": false
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "WinRM leaves no disk artifact and blends with admin activity, but script-block logging (4104) exposes payload content where enabled.",
+      "reliability": "medium"
+    }
+  ],
+  "mitre_technique": "T1021.006",
+  "prerequisite_privilege": "Remote Management Users / admin on target",
+  "abuse_primitive": "Enter-PSSession / WinRM remote-exec.",
+  "notes": "Good default lateral method. Real exposure hinges on whether ScriptBlock logging (4104) is on and shipped."
+}

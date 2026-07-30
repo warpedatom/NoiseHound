@@ -1,0 +1,23 @@
+{
+  "edge_type": "HasSession",
+  "description": "A target user has a session on this computer; credentials or tokens can be harvested if you control the box.",
+  "static_noise_score": 20,
+  "telemetry": [
+    {
+      "source": "sysmon",
+      "event_id": 10,
+      "detail": "ProcessAccess against lsass.exe if credentials are dumped from memory (mimikatz) - very high fidelity.",
+      "reliability": "high"
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Token theft / impersonation (steal_token) is low-signal; LSASS dumping is high-signal. Score assumes the quieter token path.",
+      "reliability": "medium"
+    }
+  ],
+  "mitre_technique": "T1550",
+  "prerequisite_privilege": "Local admin / SYSTEM on the session host (usually via AdminTo)",
+  "abuse_primitive": "Impersonate the session's token (quiet), or dump LSASS for the credential (loud, Sysmon 10).",
+  "notes": "Score reflects token theft. If the only viable harvest is an LSASS dump, treat as 65+ (Sysmon 10 is a high-fidelity alert)."
+}

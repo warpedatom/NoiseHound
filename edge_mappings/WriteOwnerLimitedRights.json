@@ -1,0 +1,24 @@
+{
+  "edge_type": "WriteOwnerLimitedRights",
+  "description": "Constrained WriteOwner allowing ownership takeover of the target with limited follow-on rights.",
+  "static_noise_score": 44,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 5136,
+      "detail": "Owner change logged under DS-change auditing.",
+      "reliability": "high",
+      "default_enabled": false
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Same grant-then-use behavioural pattern as WriteOwner.",
+      "reliability": "medium"
+    }
+  ],
+  "mitre_technique": "T1222.001",
+  "prerequisite_privilege": "WriteOwner (limited) over target",
+  "abuse_primitive": "Take ownership, then rewrite the DACL to grant a usable right, then abuse.",
+  "notes": "Treated near WriteOwner; the follow-on abuse dominates the score."
+}

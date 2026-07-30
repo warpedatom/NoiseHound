@@ -1,0 +1,31 @@
+{
+  "edge_type": "AllowedToDelegate",
+  "description": "Constrained delegation: principal can request tickets to a target service on behalf of any user (with protocol transition).",
+  "static_noise_score": 48,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 4769,
+      "detail": "TGS request(s) from the S4U2proxy exchange - watch for a single principal requesting tickets for many users/services.",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4768,
+      "detail": "Preceding TGT / S4U2self activity.",
+      "reliability": "low",
+      "default_enabled": true
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "MDI",
+      "detail": "S4U abuse produces distinctive Kerberos patterns (S4U2self then S4U2proxy); MDI models this.",
+      "reliability": "medium"
+    }
+  ],
+  "mitre_technique": "T1558.003",
+  "prerequisite_privilege": "msDS-AllowedToDelegateTo set on the controlled account; TGT of that account",
+  "abuse_primitive": "Rubeus s4u /impersonateuser to mint a service ticket as any user.",
+  "notes": "Kerberos-ticket noise blends with normal TGS volume unless the SOC baselines per-principal ticket diversity. Protocol transition (TRUSTED_TO_AUTH_FOR_DELEGATION) widens impact."
+}

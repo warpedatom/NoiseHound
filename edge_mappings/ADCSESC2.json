@@ -1,0 +1,38 @@
+{
+  "edge_type": "ADCSESC2",
+  "description": "Enroll in a template with Any Purpose (or SubCA) EKU and no approval, usable to authenticate as any principal.",
+  "static_noise_score": 45,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 4886,
+      "detail": "Certificate Services received a certificate request (on the CA).",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4887,
+      "detail": "Certificate Services issued a certificate (on the CA).",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4768,
+      "detail": "PKINIT TGT request using the issued certificate - certificate-logon anomaly.",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Any-Purpose/SubCA certificate issuance to a non-privileged requester is a template-misuse tell where CA logs are modelled.",
+      "reliability": "medium"
+    }
+  ],
+  "mitre_technique": "T1649",
+  "prerequisite_privilege": "Enrollment rights on an Any-Purpose/SubCA template with no manager approval",
+  "abuse_primitive": "Enroll, then use the flexible-EKU cert for domain authentication.",
+  "notes": "Same CA-side 4886/4887 signature as ESC1. The permissive EKU is the distinguishing artifact."
+}

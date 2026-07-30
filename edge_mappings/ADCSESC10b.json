@@ -1,0 +1,38 @@
+{
+  "edge_type": "ADCSESC10b",
+  "description": "Weak certificate mapping (ESC10) abuse via a computer account / Schannel.",
+  "static_noise_score": 50,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 4886,
+      "detail": "Certificate request logged on the CA.",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4887,
+      "detail": "Certificate issued on the CA.",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4768,
+      "detail": "PKINIT TGT request with the issued certificate.",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Schannel/weak-mapping certificate authentication under ESC10 conditions.",
+      "reliability": "medium"
+    }
+  ],
+  "mitre_technique": "T1649",
+  "prerequisite_privilege": "Control of a victim computer + weak certificate binding",
+  "abuse_primitive": "Alter mapping attribute, authenticate via Schannel as the target.",
+  "notes": "Computer/Schannel form of ESC10."
+}

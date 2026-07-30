@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/warpedatom/noisehound/edge_schema.json",
+  "title": "NoiseHound edge-mapping entry",
+  "description": "One BloodHound edge type mapped to its detection surface and static noise score. One file per edge type under edge_mappings/, named <edge_type>.json.",
+  "type": "object",
+  "required": ["edge_type", "static_noise_score", "telemetry"],
+  "additionalProperties": true,
+  "properties": {
+    "edge_type": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The BloodHound edge/right name, e.g. GenericAll, DCSync, ADCSESC1. Must match the filename."
+    },
+    "description": {
+      "type": "string",
+      "description": "One-line explanation of the edge and how it is abused."
+    },
+    "static_noise_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Baseline expected detection cost, 0 (silent) to 100 (near-certain detection), assuming default auditing."
+    },
+    "telemetry": {
+      "type": "array",
+      "description": "Detection sources this edge's abuse touches.",
+      "items": {
+        "type": "object",
+        "required": ["source"],
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": ["windows_security", "sysmon", "network", "edr_heuristic", "etw"]
+          },
+          "event_id": {
+            "type": ["integer", "null"],
+            "description": "Event ID for windows_security/sysmon sources; null if not applicable."
+          },
+          "detail": { "type": "string" },
+          "reliability": {
+            "type": "string",
+            "enum": ["low", "medium", "high", "high_if_auditing_enabled"]
+          },
+          "default_enabled": {
+            "type": "boolean",
+            "description": "Whether the relevant auditing/logging is on by default in a stock domain."
+          },
+          "product_class": {
+            "type": "string",
+            "description": "For edr_heuristic: generic, EDR, MDI, etc."
+          }
+        }
+      }
+    },
+    "mitre_technique": {
+      "type": ["string", "null"],
+      "description": "Primary MITRE ATT&CK technique id, e.g. T1003.006."
+    },
+    "prerequisite_privilege": { "type": "string" },
+    "abuse_primitive": {
+      "type": "string",
+      "description": "The tool/command an operator uses to traverse the edge. Doubles as the lab exercise step."
+    },
+    "notes": { "type": "string" }
+  }
+}

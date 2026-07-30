@@ -1,0 +1,30 @@
+{
+  "edge_type": "ExecuteDCOM",
+  "description": "Principal can execute code on the target via DCOM.",
+  "static_noise_score": 45,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 4624,
+      "detail": "Network logon type 3 during DCOM activation.",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "sysmon",
+      "event_id": 1,
+      "detail": "Process create with an anomalous DCOM parent (e.g. mmc.exe/svchost spawning a shell).",
+      "reliability": "medium"
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "DCOM lateral execution has recognisable parent-child chains (e.g. MMC20.Application -> cmd).",
+      "reliability": "medium"
+    }
+  ],
+  "mitre_technique": "T1021.003",
+  "prerequisite_privilege": "Local activation/launch rights on the DCOM object (usually admin)",
+  "abuse_primitive": "Invoke a DCOM method that yields code execution.",
+  "notes": "Less common than WinRM/SMB, so it can evade signature-based rules but stands out in parent-child process baselining."
+}

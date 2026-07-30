@@ -1,0 +1,39 @@
+{
+  "edge_type": "WritePKINameFlag",
+  "description": "Write msPKI-Certificate-Name-Flag on a template, enabling enrollee-supplies-subject (ESC1 posture).",
+  "static_noise_score": 48,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 5136,
+      "detail": "Template msPKI-Certificate-Name-Flag modification under DS-change auditing (default OFF).",
+      "reliability": "high_if_auditing_enabled",
+      "default_enabled": false
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4886,
+      "detail": "Certificate request logged on the CA.",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4887,
+      "detail": "Certificate issued on the CA.",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4768,
+      "detail": "PKINIT TGT request with the issued certificate.",
+      "reliability": "medium",
+      "default_enabled": true
+    }
+  ],
+  "mitre_technique": "T1649",
+  "prerequisite_privilege": "WriteProperty on the template's name flag (or GenericWrite/GenericAll)",
+  "abuse_primitive": "Enable ENROLLEE_SUPPLIES_SUBJECT, then enroll with an alternate SAN (ESC1).",
+  "notes": "Turns a template into an ESC1 target; feeds ESC4. Same auditing caveat."
+}

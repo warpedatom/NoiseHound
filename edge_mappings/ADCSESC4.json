@@ -1,0 +1,45 @@
+{
+  "edge_type": "ADCSESC4",
+  "description": "Dangerous write control over a published template lets the operator reshape it into an ESC1 posture, then enroll.",
+  "static_noise_score": 50,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 5136,
+      "detail": "Template object modification (EKU / enrollment-flag / name-flag write) under DS-change auditing (default OFF).",
+      "reliability": "high_if_auditing_enabled",
+      "default_enabled": false
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4886,
+      "detail": "Certificate Services received a certificate request (on the CA).",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4887,
+      "detail": "Certificate Services issued a certificate (on the CA).",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4768,
+      "detail": "PKINIT TGT request using the issued certificate - certificate-logon anomaly.",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "A template reconfiguration immediately followed by enrollment is a strong two-step behavioural signal.",
+      "reliability": "medium"
+    }
+  ],
+  "mitre_technique": "T1649",
+  "prerequisite_privilege": "GenericAll/GenericWrite/WriteDacl/WriteOwner/Owns over a published template",
+  "abuse_primitive": "Edit the template to enable SAN + client-auth, enroll as any user, then optionally revert.",
+  "notes": "Adds a directory-modification event (5136) on top of the ESC1 issuance signature. Reverting the template is common and itself logs."
+}

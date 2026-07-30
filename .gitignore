@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+.venv/
+venv/
+# operator output and real data - never commit engagement/lab data
+*.out.json
+report.html
+paths.json
+*realdata*
+*_BloodHound.zip
+lab_detections.json
+env.*.json

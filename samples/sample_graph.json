@@ -1,0 +1,30 @@
+{
+  "_comment": "Normalised NoiseHound graph. Fictional CONTOSO.LOCAL toy domain with several paths from jdoe to Domain Admins that differ in noise but not necessarily in hop count - the point of the tool. One path uses an edge type absent from the corpus (SyncedToEntraUser) to demonstrate the conservative fail-safe default.",
+  "nodes": [
+    {"id": "S-1-5-21-JDOE",   "name": "jdoe@CONTOSO.LOCAL",        "type": "User"},
+    {"id": "S-1-5-21-HELP",   "name": "HelpDeskGroup@CONTOSO.LOCAL","type": "Group"},
+    {"id": "S-1-5-21-WK14",   "name": "WKSTN-14@CONTOSO.LOCAL",     "type": "Computer"},
+    {"id": "S-1-5-21-BKP",    "name": "SVC_BACKUP@CONTOSO.LOCAL",   "type": "User"},
+    {"id": "S-1-5-21-ADM",    "name": "SVC_ADMIN@CONTOSO.LOCAL",    "type": "User"},
+    {"id": "S-1-5-21-LAPSR",  "name": "CertAgents@CONTOSO.LOCAL",   "type": "Group"},
+    {"id": "S-1-5-21-WK99",   "name": "PKI-01@CONTOSO.LOCAL",       "type": "Computer"},
+    {"id": "S-1-5-21-DAUSER", "name": "DA_HELPER@CONTOSO.LOCAL",    "type": "User"},
+    {"id": "S-1-5-21-DA",     "name": "Domain Admins@CONTOSO.LOCAL","type": "Group"}
+  ],
+  "edges": [
+    {"source": "S-1-5-21-JDOE",   "target": "S-1-5-21-HELP",  "edge_type": "MemberOf"},
+    {"source": "S-1-5-21-HELP",   "target": "S-1-5-21-WK14",  "edge_type": "AdminTo"},
+    {"source": "S-1-5-21-WK14",   "target": "S-1-5-21-BKP",   "edge_type": "HasSession"},
+    {"source": "S-1-5-21-BKP",    "target": "S-1-5-21-DA",    "edge_type": "MemberOf"},
+
+    {"source": "S-1-5-21-HELP",   "target": "S-1-5-21-ADM",   "edge_type": "GenericWrite"},
+    {"source": "S-1-5-21-ADM",    "target": "S-1-5-21-DA",    "edge_type": "MemberOf"},
+
+    {"source": "S-1-5-21-JDOE",   "target": "S-1-5-21-ADM",   "edge_type": "ForceChangePassword"},
+
+    {"source": "S-1-5-21-JDOE",   "target": "S-1-5-21-LAPSR", "edge_type": "MemberOf"},
+    {"source": "S-1-5-21-LAPSR",  "target": "S-1-5-21-WK99",  "edge_type": "SyncedToEntraUser"},
+    {"source": "S-1-5-21-WK99",   "target": "S-1-5-21-DAUSER","edge_type": "HasSession"},
+    {"source": "S-1-5-21-DAUSER", "target": "S-1-5-21-DA",    "edge_type": "MemberOf"}
+  ]
+}

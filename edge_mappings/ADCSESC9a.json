@@ -1,0 +1,38 @@
+{
+  "edge_type": "ADCSESC9a",
+  "description": "No-security-extension certificate abuse (ESC9) via a controlled user with a weak UPN mapping.",
+  "static_noise_score": 50,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 4886,
+      "detail": "Certificate request logged on the CA.",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4887,
+      "detail": "Certificate issued on the CA.",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4768,
+      "detail": "PKINIT TGT request with the issued certificate.",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Certificate with CT_FLAG_NO_SECURITY_EXTENSION plus an altered UPN is a recognised ESC9 pattern.",
+      "reliability": "medium"
+    }
+  ],
+  "mitre_technique": "T1649",
+  "prerequisite_privilege": "Control of a victim account + enroll on a no-security-extension template",
+  "abuse_primitive": "Set the victim UPN to a target, enroll, authenticate as the target.",
+  "notes": "Relies on the template's disabled security extension and weak certificate mapping."
+}

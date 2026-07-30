@@ -1,0 +1,18 @@
+title: Active Directory Replication from Non Machine Account (DCSync)
+id: 46effc0e-3a2f-4f0c-b6a0-3a4b2c1d0e11
+status: stable
+description: Detects DCSync via directory replication (Event 4662 with replication GUIDs).
+logsource:
+  product: windows
+  service: security
+detection:
+  selection:
+    EventID: 4662
+    Properties|contains:
+      - '1131f6aa-9c07-11d1-f79f-00c04fc2dcd2'
+      - '1131f6ad-9c07-11d1-f79f-00c04fc2dcd2'
+  condition: selection
+level: high
+tags:
+  - attack.credential-access
+  - attack.t1003.006

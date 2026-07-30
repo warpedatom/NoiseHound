@@ -1,0 +1,35 @@
+{
+  "edge_type": "DCSync",
+  "description": "Replication rights abuse to pull password hashes via MS-DRSR.",
+  "static_noise_score": 85,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 4662,
+      "detail": "Directory Service Access - requires object auditing enabled on the domain object (replication GUID 1131f6aa-...). Default OFF.",
+      "reliability": "high_if_auditing_enabled",
+      "default_enabled": false
+    },
+    {
+      "source": "sysmon",
+      "event_id": null,
+      "detail": "Not directly visible in Sysmon; only network-layer RPC traffic to DRSUAPI.",
+      "reliability": "low"
+    },
+    {
+      "source": "network",
+      "detail": "DRSUAPI/DRSGetNCChanges call to a DC over RPC; an unusual (non-DC) source host is a strong signal.",
+      "reliability": "medium"
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "MDI",
+      "detail": "Many EDRs and MDI flag non-DC hosts issuing DRSGetNCChanges calls - high fidelity.",
+      "reliability": "high"
+    }
+  ],
+  "mitre_technique": "T1003.006",
+  "prerequisite_privilege": "Replicating Directory Changes + Replicating Directory Changes All",
+  "abuse_primitive": "lsadump::dcsync / secretsdump against a DC for target account hashes.",
+  "notes": "Score assumes default audit policy (mostly OFF) but high EDR/MDI heuristic coverage. If domain-object auditing is enabled, treat as near-certain detection (90+)."
+}

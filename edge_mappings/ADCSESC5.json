@@ -1,0 +1,45 @@
+{
+  "edge_type": "ADCSESC5",
+  "description": "Control of the enterprise CA object or its hosting computer, enabling arbitrary PKI compromise.",
+  "static_noise_score": 55,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 4624,
+      "detail": "Logon to the CA host for hands-on-CA actions (config edits, key access).",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4886,
+      "detail": "Certificate Services received a certificate request (on the CA).",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4887,
+      "detail": "Certificate Services issued a certificate (on the CA).",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4768,
+      "detail": "PKINIT TGT request using the issued certificate - certificate-logon anomaly.",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Administrative access to a CA host is high-value and frequently monitored; CA service/config changes are high-fidelity.",
+      "reliability": "high"
+    }
+  ],
+  "mitre_technique": "T1649",
+  "prerequisite_privilege": "Control of the CA object, or admin on the CA hosting computer",
+  "abuse_primitive": "Reconfigure the CA (enable SAN, issue as anyone) or extract the CA private key for offline forging.",
+  "notes": "Owning the CA is close to game-over and is a monitored asset. CA private key theft enables silent forging afterward, shifting noise to first access."
+}

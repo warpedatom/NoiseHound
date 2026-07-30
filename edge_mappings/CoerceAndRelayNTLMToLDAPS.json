@@ -1,0 +1,36 @@
+{
+  "edge_type": "CoerceAndRelayNTLMToLDAPS",
+  "description": "Coerce a victim and relay its NTLM to LDAPS (channel binding not enforced) for the same LDAP abuse.",
+  "static_noise_score": 58,
+  "telemetry": [
+    {
+      "source": "network",
+      "detail": "Authentication coercion (PetitPotam MS-EFSR, PrinterBug MS-RPRN, DFSCoerce, etc.) generates distinctive RPC traffic to the victim.",
+      "reliability": "medium"
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4624,
+      "detail": "Relayed NTLM authentication lands as a logon on the relay target.",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Coercion-plus-relay chains are heavily signatured; NTLM relay is a well-known, widely detected pattern.",
+      "reliability": "high"
+    },
+    {
+      "source": "windows_security",
+      "event_id": 5136,
+      "detail": "Directory write via the relayed LDAPS session under DS-change auditing.",
+      "reliability": "high_if_auditing_enabled",
+      "default_enabled": false
+    }
+  ],
+  "mitre_technique": "T1187",
+  "prerequisite_privilege": "Network position; LDAPS channel binding not enforced",
+  "abuse_primitive": "Coerce + relay to ldaps:// for RBCD / shadow credentials.",
+  "notes": "Same as the LDAP variant over TLS; viable only without EPA / channel binding."
+}

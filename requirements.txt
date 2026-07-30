@@ -1,0 +1,3 @@
+networkx>=3.0
+# Phase 2 (live Bolt ingestion) will add:
+# neo4j>=5.0

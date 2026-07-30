@@ -1,0 +1,38 @@
+{
+  "edge_type": "ADCSESC9b",
+  "description": "No-security-extension certificate abuse (ESC9) via a controlled computer account.",
+  "static_noise_score": 50,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 4886,
+      "detail": "Certificate request logged on the CA.",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4887,
+      "detail": "Certificate issued on the CA.",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4768,
+      "detail": "PKINIT TGT request with the issued certificate.",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Computer-account variant of the ESC9 no-security-extension abuse.",
+      "reliability": "medium"
+    }
+  ],
+  "mitre_technique": "T1649",
+  "prerequisite_privilege": "Control of a victim computer + enroll on a no-security-extension template",
+  "abuse_primitive": "Alter the computer's DNS/UPN mapping, enroll, authenticate as the target.",
+  "notes": "Computer-account form of ESC9."
+}

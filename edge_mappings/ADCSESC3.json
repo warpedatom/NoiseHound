@@ -1,0 +1,38 @@
+{
+  "edge_type": "ADCSESC3",
+  "description": "Obtain an Enrollment Agent certificate, then enroll-on-behalf-of another principal against an authentication template.",
+  "static_noise_score": 48,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 4886,
+      "detail": "Certificate Services received a certificate request (on the CA).",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4887,
+      "detail": "Certificate Services issued a certificate (on the CA). - two issuance events: the agent cert then the on-behalf-of cert.",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4768,
+      "detail": "PKINIT TGT request using the issued certificate - certificate-logon anomaly.",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "The enrollment-agent-then-EOBO sequence is a distinctive two-request pattern modelled by newer ITDR.",
+      "reliability": "medium"
+    }
+  ],
+  "mitre_technique": "T1649",
+  "prerequisite_privilege": "Enrollment on a Certificate-Request-Agent template plus an enrollable auth template",
+  "abuse_primitive": "Certipy/Certify enroll agent cert, then enroll on behalf of a Domain Admin.",
+  "notes": "Two certificate operations means two CA log entries, so slightly louder than ESC1/2 where CA logging is present."
+}

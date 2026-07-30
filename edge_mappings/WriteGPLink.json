@@ -1,0 +1,31 @@
+{
+  "edge_type": "WriteGPLink",
+  "description": "Modify the gPLink attribute of an OU/site to attach an attacker-controlled GPO to its scope.",
+  "static_noise_score": 50,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 5136,
+      "detail": "gPLink attribute modification under DS-change auditing (default OFF).",
+      "reliability": "high_if_auditing_enabled",
+      "default_enabled": false
+    },
+    {
+      "source": "windows_security",
+      "event_id": 5137,
+      "detail": "A directory service object was created (new GPO link).",
+      "reliability": "medium",
+      "default_enabled": false
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Linking a GPO to a privileged OU affects many machines and is a high-impact, increasingly-modelled change.",
+      "reliability": "high"
+    }
+  ],
+  "mitre_technique": "T1484.001",
+  "prerequisite_privilege": "WriteProperty on the OU/site gPLink (or GenericWrite/GenericAll)",
+  "abuse_primitive": "Link a malicious GPO to the target OU to gain execution/rights across its members.",
+  "notes": "High blast radius. Also leaves SYSVOL file artifacts when the GPO payload is staged. Loud where GPO changes are monitored."
+}

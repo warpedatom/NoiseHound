@@ -1,0 +1,31 @@
+{
+  "edge_type": "AllowedToAct",
+  "description": "Resource-Based Constrained Delegation: principal can act on behalf of others to the target computer.",
+  "static_noise_score": 50,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 5136,
+      "detail": "Write to msDS-AllowedToActOnBehalfOfOtherIdentity on the target computer - logged under DS-change auditing (default OFF).",
+      "reliability": "high_if_auditing_enabled",
+      "default_enabled": false
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4769,
+      "detail": "S4U2proxy TGS requests to the target during abuse.",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "MDI",
+      "detail": "The RBCD attribute write plus S4U pattern is a recognised chain in ITDR tooling.",
+      "reliability": "medium"
+    }
+  ],
+  "mitre_technique": "T1558.003",
+  "prerequisite_privilege": "GenericWrite/GenericAll over the target computer object to set the RBCD attribute",
+  "abuse_primitive": "Write msDS-AllowedToActOnBehalfOfOtherIdentity to a controlled computer/account, then S4U to the target as admin.",
+  "notes": "One directory write (quiet without auditing) plus Kerberos S4U. Popular because the setup is low-signal in default configs."
+}

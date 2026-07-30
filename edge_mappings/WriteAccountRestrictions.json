@@ -1,0 +1,31 @@
+{
+  "edge_type": "WriteAccountRestrictions",
+  "description": "Write userAccountControl-related restrictions (e.g. disable Kerberos preauth, set delegation flags).",
+  "static_noise_score": 40,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 5136,
+      "detail": "userAccountControl / restriction attribute change under DS-change auditing.",
+      "reliability": "medium",
+      "default_enabled": false
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4738,
+      "detail": "A user account was changed - default-on, fires on UAC edits.",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Disabling preauth (to enable AS-REP roast) or flipping delegation flags is a known abuse signal.",
+      "reliability": "medium"
+    }
+  ],
+  "mitre_technique": "T1098",
+  "prerequisite_privilege": "WriteProperty on account restriction attributes",
+  "abuse_primitive": "Clear DONT_REQ_PREAUTH for AS-REP roast, or set delegation flags for a follow-on attack.",
+  "notes": "4738 is default-on so a UAC change on a privileged account is visible even without DS-change auditing."
+}

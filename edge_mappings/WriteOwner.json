@@ -1,0 +1,31 @@
+{
+  "edge_type": "WriteOwner",
+  "description": "Ability to set the object owner; owner implicitly gains WriteDacl, chaining to full control.",
+  "static_noise_score": 45,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 5136,
+      "detail": "Owner (nTSecurityDescriptor owner field) change logged under DS-change auditing.",
+      "reliability": "high",
+      "default_enabled": false
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4670,
+      "detail": "Object permissions/owner changed - requires object SACL auditing.",
+      "reliability": "medium",
+      "default_enabled": false
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Ownership takeover of a privileged object is a rare, high-signal action once directory-change modelling is in place.",
+      "reliability": "medium"
+    }
+  ],
+  "mitre_technique": "T1222.001",
+  "prerequisite_privilege": "WriteOwner over target",
+  "abuse_primitive": "Set self as owner -> WriteDacl -> grant control -> abuse. Multi-step chain.",
+  "notes": "Comparable to WriteDacl. Loud only where directory-change auditing is enabled; otherwise the follow-on abuse is the visible part."
+}

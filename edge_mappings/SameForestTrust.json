@@ -1,0 +1,22 @@
+{
+  "edge_type": "SameForestTrust",
+  "description": "Intra-forest trust between domains (parent-child or cross-link); Kerberos flows across it.",
+  "static_noise_score": 10,
+  "telemetry": [
+    {
+      "source": "network",
+      "detail": "Cross-domain Kerberos referrals (TGS to the trusted domain's krbtgt) are normal traffic.",
+      "reliability": "low"
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Intra-forest trust traversal is routine; abuse (e.g. inter-realm golden/trust-key tickets) is the loud part, scored via those edges.",
+      "reliability": "low"
+    }
+  ],
+  "mitre_technique": "T1482",
+  "prerequisite_privilege": "None to traverse the trust itself",
+  "abuse_primitive": "Move across the trust with existing tickets; escalate via trust-key or SIDHistory where applicable.",
+  "notes": "Structural traversal edge kept low. Trust-key abuse and inter-realm ticket forging are separate, louder actions."
+}

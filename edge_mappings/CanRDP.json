@@ -1,0 +1,31 @@
+{
+  "edge_type": "CanRDP",
+  "description": "Principal can RDP to the target computer (interactive logon).",
+  "static_noise_score": 50,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 4624,
+      "detail": "Successful logon type 10 (RemoteInteractive) - default-on and easy to baseline per user/host.",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4778,
+      "detail": "Session reconnected (RDP).",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Interactive RDP is high-visibility: leaves a full credential cache on the target and is often watched for lateral anomalies.",
+      "reliability": "high"
+    }
+  ],
+  "mitre_technique": "T1021.001",
+  "prerequisite_privilege": "Remote Desktop Users membership (or admin) on target",
+  "abuse_primitive": "RDP session to the target host.",
+  "notes": "Logon type 10 is distinctive and default-logged. Prefer WinRM/WMI where the objective allows."
+}

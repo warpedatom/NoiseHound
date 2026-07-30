@@ -1,0 +1,24 @@
+{
+  "edge_type": "Kerberoast",
+  "description": "Request a service ticket for an account's SPN and crack it offline to recover the account's password.",
+  "static_noise_score": 30,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 4769,
+      "detail": "Kerberos service ticket (TGS-REQ) request - watch for RC4 (0x17) encryption type; a targeted single-SPN request is hard to distinguish from normal ticket volume.",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Requesting many SPNs at once (mass roast) is a strong signal; a single targeted request blends in.",
+      "reliability": "low"
+    }
+  ],
+  "mitre_technique": "T1558.003",
+  "prerequisite_privilege": "Any authenticated domain user (service tickets are requestable by anyone)",
+  "abuse_primitive": "Rubeus kerberoast /user:<spn account>, then hashcat -m 13100 offline.",
+  "notes": "Targeted single-account roasting is quiet by default; the loud version is requesting every SPN at once. Cracking happens offline (no telemetry). Score assumes a targeted request against one account."
+}

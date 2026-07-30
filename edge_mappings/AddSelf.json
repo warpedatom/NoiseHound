@@ -1,0 +1,31 @@
+{
+  "edge_type": "AddSelf",
+  "description": "Principal can add itself to the target group.",
+  "static_noise_score": 35,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 4728,
+      "detail": "Member added to global group - self-addition is still a group-change event.",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4732,
+      "detail": "Member added to local group.",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Same default-on group-change signal as AddMember.",
+      "reliability": "high"
+    }
+  ],
+  "mitre_technique": "T1098",
+  "prerequisite_privilege": "SELF WriteProperty on group member attribute",
+  "abuse_primitive": "Add own principal to the group.",
+  "notes": "Scored identically to AddMember. Tier-0 target groups should be treated as near-certain detection."
+}

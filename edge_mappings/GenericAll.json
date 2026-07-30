@@ -1,0 +1,31 @@
+{
+  "edge_type": "GenericAll",
+  "description": "Full control over the target object; enables any ACL-based abuse (password reset, shadow creds, RBCD, group add).",
+  "static_noise_score": 40,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 4662,
+      "detail": "Directory Service Access on the target object - only if object-level SACL auditing is enabled (default OFF).",
+      "reliability": "high_if_auditing_enabled",
+      "default_enabled": false
+    },
+    {
+      "source": "windows_security",
+      "event_id": 5136,
+      "detail": "Directory service object modified when the abuse writes an attribute (e.g. msDS-KeyCredentialLink, member). Requires DS-change auditing.",
+      "reliability": "medium",
+      "default_enabled": false
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "The chosen abuse primitive drives the real signal (password reset 4724, shadow-cred write, RBCD). The ACL itself is passive until used.",
+      "reliability": "medium"
+    }
+  ],
+  "mitre_technique": "T1222.001",
+  "prerequisite_privilege": "WriteDACL/Owner-equivalent full control over target",
+  "abuse_primitive": "Over a user: targeted Kerberoast or ForceChangePassword or AddKeyCredentialLink. Over a computer: RBCD or shadow credentials. Over a group: AddMember.",
+  "notes": "Score reflects the quietest common abuse (shadow creds / targeted roast). If abused via password reset treat as ~55. Score climbs sharply if 4662 object auditing is on."
+}

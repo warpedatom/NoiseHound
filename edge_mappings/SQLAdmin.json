@@ -1,0 +1,30 @@
+{
+  "edge_type": "SQLAdmin",
+  "description": "Principal is a sysadmin on the target MSSQL instance; code execution via xp_cmdshell/OLE/CLR.",
+  "static_noise_score": 50,
+  "telemetry": [
+    {
+      "source": "sysmon",
+      "event_id": 1,
+      "detail": "Process create where sqlservr.exe is the parent (xp_cmdshell) - a strong tell.",
+      "reliability": "high"
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4624,
+      "detail": "Logon to the SQL host during the connection.",
+      "reliability": "low",
+      "default_enabled": true
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Child processes of sqlservr.exe are a well-known execution signal; SQL audit logs capture the config changes.",
+      "reliability": "high"
+    }
+  ],
+  "mitre_technique": "T1505.001",
+  "prerequisite_privilege": "sysadmin (or impersonable login chain) on the SQL instance",
+  "abuse_primitive": "Enable and run xp_cmdshell (or OLE/CLR) for OS command execution.",
+  "notes": "sqlservr.exe spawning cmd/powershell is a high-fidelity behavioural detection. Always disable xp_cmdshell/OLE/CLR after use."
+}

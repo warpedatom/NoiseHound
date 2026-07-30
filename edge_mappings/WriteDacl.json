@@ -1,0 +1,31 @@
+{
+  "edge_type": "WriteDacl",
+  "description": "Ability to modify the target's DACL; typically used to grant oneself DCSync or GenericAll, then abuse.",
+  "static_noise_score": 45,
+  "telemetry": [
+    {
+      "source": "windows_security",
+      "event_id": 5136,
+      "detail": "DACL modification writes nTSecurityDescriptor - logged under DS-change auditing (default OFF).",
+      "reliability": "high",
+      "default_enabled": false
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4670,
+      "detail": "Permissions on an object were changed - fires when SACL auditing covers the object.",
+      "reliability": "medium",
+      "default_enabled": false
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "A two-step pattern (grant rights, then use them) is a strong behavioural signal even without directory auditing.",
+      "reliability": "medium"
+    }
+  ],
+  "mitre_technique": "T1222.001",
+  "prerequisite_privilege": "WriteDACL over target",
+  "abuse_primitive": "Add an ACE granting DCSync or GenericAll to a controlled principal, then perform that follow-on abuse.",
+  "notes": "Adds one directory-modification event on top of whatever the follow-on abuse costs. The chained abuse usually dominates the path score."
+}

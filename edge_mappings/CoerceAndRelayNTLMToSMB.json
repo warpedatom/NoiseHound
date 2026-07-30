@@ -1,0 +1,36 @@
+{
+  "edge_type": "CoerceAndRelayNTLMToSMB",
+  "description": "Coerce a victim and relay its NTLM to SMB on a target where it is local admin, for code execution.",
+  "static_noise_score": 55,
+  "telemetry": [
+    {
+      "source": "network",
+      "detail": "Authentication coercion (PetitPotam MS-EFSR, PrinterBug MS-RPRN, DFSCoerce, etc.) generates distinctive RPC traffic to the victim.",
+      "reliability": "medium"
+    },
+    {
+      "source": "windows_security",
+      "event_id": 4624,
+      "detail": "Relayed NTLM authentication lands as a logon on the relay target.",
+      "reliability": "medium",
+      "default_enabled": true
+    },
+    {
+      "source": "edr_heuristic",
+      "product_class": "generic",
+      "detail": "Coercion-plus-relay chains are heavily signatured; NTLM relay is a well-known, widely detected pattern.",
+      "reliability": "high"
+    },
+    {
+      "source": "windows_security",
+      "event_id": 7045,
+      "detail": "Service installed on the relay target if a service-based exec is used.",
+      "reliability": "high",
+      "default_enabled": true
+    }
+  ],
+  "mitre_technique": "T1187",
+  "prerequisite_privilege": "Network position; SMB signing not required on the target; victim is admin there",
+  "abuse_primitive": "Coerce + ntlmrelayx -t smb://target -c '...' or secretsdump.",
+  "notes": "Needs SMB signing not enforced on the target and the coerced principal to be admin there."
+}
