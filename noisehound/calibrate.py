@@ -178,6 +178,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--input", "-i", default=None, help="Lab detections JSON.")
     p.add_argument("--template", action="store_true",
                    help="Emit a blank lab-detections file listing every corpus edge to exercise, then exit.")
+    p.add_argument("--plan", action="store_true",
+                   help="Emit the machine-readable calibration plan (per edge: abuse primitive + "
+                        "the exact event IDs that count as detection) for the automated harness, then exit.")
     p.add_argument("--out", "-o", default=None,
                    help="Write the environment profile here (default: stdout).")
     p.add_argument("--corpus", default=None, help="Corpus directory (default: bundled).")
@@ -213,6 +216,43 @@ def build_template(corpus) -> dict:
     }
 
 
+def build_plan(corpus) -> dict:
+    """The automated harness's execution plan, derived from the corpus.
+
+    For each edge it lists the abuse primitive to run and the exact event IDs a
+    detection auto-collector should look for (from the corpus telemetry). The
+    harness runs each abuse N times in a clean window, counts these events, and
+    scores detected/runs automatically - no manual per-technique bookkeeping.
+    """
+    edges = []
+    for entry in sorted(corpus, key=lambda e: e["edge_type"]):
+        detect = []
+        for t in entry.get("telemetry", []) or []:
+            if t.get("source") in ("windows_security", "sysmon") and t.get("event_id") is not None:
+                detect.append({
+                    "source": t["source"],
+                    "event_id": t["event_id"],
+                    "reliability": t.get("reliability"),
+                    "default_enabled": t.get("default_enabled", True),
+                })
+        edges.append({
+            "edge_type": entry["edge_type"],
+            "mitre_technique": entry.get("mitre_technique"),
+            "abuse_primitive": entry.get("abuse_primitive", ""),
+            "detect_events": detect,
+            "edr_heuristic": any(
+                t.get("source") == "edr_heuristic" for t in entry.get("telemetry", []) or []),
+        })
+    return {
+        "_comment": "NoiseHound automated-calibration plan. Per edge: the abuse primitive to run "
+                    "and the event IDs that count as detection. The harness executes each abuse in "
+                    "a clean window, counts detect_events in the Security/Sysmon logs, and scores "
+                    "detected/runs automatically. edr_heuristic edges also need an EDR/MDI portal check.",
+        "version": __version__,
+        "edges": edges,
+    }
+
+
 def main(argv: list | None = None) -> int:
     args = build_parser().parse_args(argv)
 
@@ -221,6 +261,16 @@ def main(argv: list | None = None) -> int:
     except (FileNotFoundError, ValueError) as exc:
         print("corpus error: %s" % exc, file=sys.stderr)
         return 2
+
+    if args.plan:
+        out_json = json.dumps(build_plan(corpus), indent=2, ensure_ascii=False)
+        if args.out:
+            with open(args.out, "w", encoding="utf-8") as fh:
+                fh.write(out_json + "\n")
+            print("wrote calibration plan (%d edges) to %s" % (len(corpus), args.out), file=sys.stderr)
+        else:
+            print(out_json)
+        return 0
 
     if args.template:
         out_json = json.dumps(build_template(corpus), indent=2, ensure_ascii=False)

@@ -419,6 +419,21 @@ def test_calibrate_template_covers_every_edge():
     assert len(edges) == len(corpus)
 
 
+def test_calibration_plan_maps_edges_to_detect_events():
+    from noisehound.calibrate import build_plan
+    corpus = load_corpus()
+    plan = build_plan(corpus)
+    assert len(plan["edges"]) == len(corpus)
+    by = {e["edge_type"]: e for e in plan["edges"]}
+    # DCSync detection = Security 4662; the harness auto-scores on it.
+    dcsync_ids = {(d["source"], d["event_id"]) for d in by["DCSync"]["detect_events"]}
+    assert ("windows_security", 4662) in dcsync_ids
+    # HasSession = Sysmon 10 (LSASS access).
+    assert ("sysmon", 10) in {(d["source"], d["event_id"]) for d in by["HasSession"]["detect_events"]}
+    # Every edge carries an abuse primitive and the edr flag for portal checks.
+    assert all("abuse_primitive" in e and "edr_heuristic" in e for e in plan["edges"])
+
+
 def test_solver_respects_time_budget():
     # A tiny time budget must not prevent a correct answer (threshold sweep is
     # always run) and must return promptly.
