@@ -80,7 +80,28 @@ logged into a workstation) to produce the BloodHound graph NoiseHound will path
 over, and confirm detection is live (`Collect-Detections.ps1` shows events after
 a test technique).
 
-Then the automated calibration harness (built separately - see the calibration
-plan `noisehound-calibrate --plan`) runs on the range: it executes each corpus
-edge's abuse N times, auto-scores detection from the logs + MDI/EDR, and emits
-the measured profile. That profile is what we ship in the calibrated release.
+## Step 7 - Run the automated calibration harness
+
+From `NoiseHound/lab/` on the attacking host:
+
+```powershell
+# 1. emit the plan (per-edge detection event IDs, from the corpus)
+noisehound-calibrate --plan -o plan.json
+
+# 2. fill in the abuse commands for YOUR objects, then enable them
+#    (copy the template, adjust GOAD user/computer/domain names + tool paths,
+#     set "enabled": true on each edge you've set up)
+copy calibration-commands.template.json calibration-commands.json
+
+# 3. run it - executes each enabled edge N times, auto-counts the plan's
+#    detect_events in the Security/Sysmon logs, scores detected/runs
+.\Invoke-NoiseHoundCalibration.ps1 -Runs 4 -Sysmon -Edr none -Auditing4662 -Out lab_detections.json
+
+# 4. quick severity pass: bump edges where MDI/EDR raised a NAMED alert to
+#    high/critical in lab_detections.json, then produce the measured profile
+noisehound-calibrate -i lab_detections.json -o profiles/goad-measured.json
+```
+
+The harness automates the tedious part (running + counting). That measured
+profile is what we commit and ship in the calibrated release - re-run after
+adding MDI/EDR to light up the alert tier.

