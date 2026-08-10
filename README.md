@@ -3,10 +3,13 @@
 <h1 align="center">NoiseHound</h1>
 
 <p align="center">
-  <img alt="license" src="https://img.shields.io/badge/license-MIT-blue">
-  <img alt="python" src="https://img.shields.io/badge/python-3.10%2B-blue">
-  <img alt="version" src="https://img.shields.io/badge/version-1.0.0-blue">
-  <img alt="tests" src="https://img.shields.io/badge/tests-52%20passing-brightgreen">
+  <a href="https://pypi.org/project/noisehound/"><img src="https://img.shields.io/pypi/v/noisehound" alt="PyPI"></a>
+  <a href="https://github.com/warpedatom/NoiseHound/releases"><img src="https://img.shields.io/github/v/release/warpedatom/NoiseHound" alt="Release"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/github/license/warpedatom/NoiseHound" alt="License"></a>
+  <img src="https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white" alt="Python 3.10+">
+  <a href="https://github.com/warpedatom/NoiseHound/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/warpedatom/NoiseHound/ci.yml?branch=main&label=CI" alt="CI"></a>
+  <a href="./SECURITY.md"><img src="https://img.shields.io/badge/Security-Policy-green" alt="Security policy"></a>
+  <a href="https://x.com/warped_atom"><img src="https://img.shields.io/badge/X-%40warped__atom-000000?logo=x&logoColor=white" alt="X (Twitter): @warped_atom"></a>
 </p>
 
 **Detection-aware Active Directory attack-path scoring.**

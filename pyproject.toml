@@ -14,9 +14,9 @@ keywords = ["bloodhound", "active-directory", "red-team", "opsec", "detection"]
 dependencies = ["networkx>=3.0"]
 
 [project.urls]
-Homepage = "https://github.com/warpedatom/noisehound"
-Repository = "https://github.com/warpedatom/noisehound"
-Changelog = "https://github.com/warpedatom/noisehound/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/warpedatom/NoiseHound"
+Repository = "https://github.com/warpedatom/NoiseHound"
+Changelog = "https://github.com/warpedatom/NoiseHound/blob/main/CHANGELOG.md"
 
 [project.scripts]
 noisehound = "noisehound.cli:main"

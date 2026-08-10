@@ -63,24 +63,30 @@ Domain Admins visually. That is the BloodHound-native integration validated.
 
 ## 5. Publish
 
-**NoiseHound -> GitHub (+ optional PyPI):**
+The repos already carry full git history (they ship with `.git`). Do **not**
+`git init` - it would wipe that history. Create the GitHub repo, push the existing
+history, then tag. You perform the credentialed steps (`gh auth login`,
+`cargo login`, the PyPI publisher setup); nothing publishes without your action.
+
+**NoiseHound -> GitHub + PyPI:**
 ```bash
 cd NoiseHound
-git init && git add . && git commit -m "NoiseHound v0.6.0"
-gh repo create warpedatom/noisehound --public --source=. --push
-git tag v0.6.0 && git push --tags     # triggers the PyPI publish workflow
+gh auth status                        # you: authenticate first if needed
+gh repo create warpedatom/NoiseHound --public --source=. --remote=origin --push
+git tag v1.0.0 && git push origin v1.0.0     # triggers the PyPI publish workflow
 ```
-PyPI publish uses Trusted Publishing - configure the publisher for
-`warpedatom/noisehound` on PyPI first, or drop a `PYPI_API_TOKEN` secret.
+PyPI uses Trusted Publishing - on pypi.org configure the publisher for
+`warpedatom/NoiseHound` (workflow `publish.yml`) *before* pushing the tag, or drop
+a `PYPI_API_TOKEN` repo secret.
 
 **DeadAir -> GitHub + crates.io:**
 ```bash
 cd ../deadair
-git init && git add . && git commit -m "DeadAir v0.1.0"
-gh repo create warpedatom/deadair --public --source=. --push
-git tag v0.1.0 && git push --tags     # release workflow builds the binaries
+gh repo create warpedatom/DeadAir --public --source=. --remote=origin --push
+git tag v0.2.0 && git push origin v0.2.0     # release workflow builds the binaries
 
-cargo login <deadair-scoped crates.io token>
+cargo login                           # you: paste your crates.io API token
+cargo publish --dry-run               # verify packaging, then:
 cargo publish
 ```
 
