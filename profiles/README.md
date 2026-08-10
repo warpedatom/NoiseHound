@@ -17,8 +17,8 @@ from a 4-hop session-hijack chain to a 1-hop ADCS ESC1 (see `docs/VALIDATION.md`
 
 | Profile | Tier | Edges | What it models |
 |---------|------|-------|----------------|
-| `vulnad-hyperv-audit.json`   | Audit only | 29 | Full DC audit policy + Sysmon, no EDR. Tool-agnostic technique signals (4662/4769/5136/4886...). |
-| `vulnad-hyperv-edr.json`     | Alert / EDR | 29 | Above + a Microsoft Defender for Endpoint severity pass on edges that raised named alerts. |
+| `vulnad-hyperv-audit.json`   | Audit only | 30 | Full DC audit policy + Sysmon, no EDR. Tool-agnostic technique signals (4662/4769/5136/4886...). |
+| `vulnad-hyperv-edr.json`     | Alert / EDR | 30 | Above + a Microsoft Defender for Endpoint severity pass on edges that raised named alerts. |
 | `vulnad-hyperv-elastic.json` | Elastic SIEM | 10 | Open/free Elasticsearch + Kibana with prebuilt rules. Caught SQLAdmin (64) and DCSync (85) at HIGH - free rules matching/beating the commercial EDR. |
 
 ## How they were measured
@@ -32,9 +32,9 @@ scored by `noisehound-calibrate`. Full methodology: `docs/CALIBRATION.md`,
 
 ## Honest scope + caveats
 
-- **29 of 57 corpus edges** are measured (the DC-local + lateral subset a single
+- **30 of 57 corpus edges** are measured (the DC-local + lateral subset a single
   DC + member server exposes). The rest still carry corpus estimates. Coercion/
-  relay, the remaining ADCS ESC2-13, CanRDP, and AllExtendedRights are unmeasured.
+  relay, the remaining ADCS ESC2-13, and AllExtendedRights are unmeasured.
 - **Single lab.** One audit baseline, one EDR (MDE), one SIEM (Elastic). Treat the
   numbers as a well-grounded reference point, not a universal constant - recalibrate
   for your environment with the harness.

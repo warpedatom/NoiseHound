@@ -6,7 +6,7 @@
   <img alt="license" src="https://img.shields.io/badge/license-MIT-blue">
   <img alt="python" src="https://img.shields.io/badge/python-3.10%2B-blue">
   <img alt="status" src="https://img.shields.io/badge/status-beta-orange">
-  <img alt="tests" src="https://img.shields.io/badge/tests-44%20passing-brightgreen">
+  <img alt="tests" src="https://img.shields.io/badge/tests-52%20passing-brightgreen">
 </p>
 
 **Detection-aware Active Directory attack-path scoring.**
@@ -18,7 +18,7 @@ detection cost** instead of hop count, so an operator can ask "what is the
 quietest way to Domain Admin" instead of just "what is a way".
 
 > **Project status (beta):** the engine, ingestion, and analysis are complete
-> and tested on real BloodHound data across multiple domains. **29 of 57 corpus
+> and tested on real BloodHound data across multiple domains. **30 of 57 corpus
 > edges are now lab-measured** across four detection tiers (audit, Defender for
 > Endpoint, Elastic SIEM, and MDI posture) - shipped as drop-in profiles in
 > [`profiles/`](profiles/), with closed-loop proof that they change path rankings
@@ -285,7 +285,7 @@ record what fired, and it emits a calibrated environment profile.
 
 **This has been done.** [`profiles/`](profiles/) ships three measured profiles from
 a real Hyper-V Vulnerable-AD range - audit, EDR (Defender for Endpoint), and Elastic
-SIEM tiers, 29 edges - produced by the automated harness (`lab/`) and this tool. Use
+SIEM tiers, 30 edges - produced by the automated harness (`lab/`) and this tool. Use
 them directly, or measure your own:
 
 ```bash
@@ -413,7 +413,7 @@ detection facts. Tune them against your own lab detection data.
 
 ## Roadmap
 
-- **Calibration - done for 29/57 edges, continuing.** Three measured profiles ship
+- **Calibration - done for 30/57 edges, continuing.** Three measured profiles ship
   in [`profiles/`](profiles/) (audit / EDR / Elastic tiers) with closed-loop
   validation. Remaining: the other ~28 edges (coercion/relay, ADCS ESC2-13, CanRDP),
   the **MDI runtime-alert tier** (posture works; the alert path needs a bare-metal/
@@ -445,7 +445,7 @@ edge schema.
 
 ## Calibrating against a lab
 
-29 edges are measured (see [`profiles/`](profiles/)); the rest are estimates until
+30 edges are measured (see [`profiles/`](profiles/)); the rest are estimates until
 you measure them, and every environment differs. [`docs/CALIBRATION.md`](docs/CALIBRATION.md)
 is a full playbook: lab topology, the exact Windows audit policy and Sysmon
 config to make the corpus's event IDs fire, a per-edge exercise runbook, an

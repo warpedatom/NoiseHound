@@ -23,7 +23,11 @@ accepts the BloodHound `.zip` directly.
 |------|-------------------|---------------|-------------|
 | **#1** | 4-hop AdminTo->**HasSession** path - **score 19.9**, P=34% | **ADCS ESC1 (1-hop)** - **score 42.0**, P=42% | **ADCS ESC1 (1-hop)** - **42.0**, P=42% |
 | #2 | CanRDP->HasSession - 39.6 | 4-hop AdminTo->HasSession - 49.3 | 4-hop AdminTo->HasSession - 49.3 |
-| #3 | ADCS ESC1 (1-hop) - 45.0 | CanRDP->HasSession - 54.6 | CanRDP->HasSession - 60.3 |
+| #3 | ADCS ESC1 (1-hop) - 45.0 | CanRDP->HasSession - 53.9 | CanRDP->HasSession - 53.9 |
+
+Audit and EDR rank identically on this sample: the EDR-tier bumps (DCSync 85,
+roasting 61, SMSA 62) aren't on any of these paths, so the two tiers only diverge
+on graphs where those credential-theft edges are on-route.
 
 **Under shipped defaults** NoiseHound tells the operator the quietest route to Domain
 Admins is the 4-hop session-hijack chain (19.9), ranking direct ADCS ESC1 abuse *last* (45.0).
@@ -38,7 +42,7 @@ Same graph, same goal - a different, better-informed decision.
 | `HasSession` | 20 | **65** | Sessions are heavily audited on a fully-instrumented DC; re-weights every lateral path hopping through a live session. |
 | `AdminTo`    | 25 | **34** | Local-admin use noisier than assumed -> pushes the 4-hop chain up. |
 | `ADCSESC1`   | 45 | **42** (audit) | Certificate enrollment (4886/4887) quieter than the conservative default -> the 1-hop cert abuse wins. |
-| `CanRDP`     | 50 | 50 -> **70** (EDR) | Interactive RDP lights up harder at the EDR tier -> #3 gets louder tier-over-tier. |
+| `CanRDP`     | 50 | **45** (measured) | Fresh RDP is a deterministic type-10 logon (4624); measured slightly quieter than the conservative default. Same value both tiers (a lateral edge, not EDR-alert-bumped). |
 | `MemberOf`   | 2 | 2 | Structural edge, unchanged - sanity check that untouched edges stay put. |
 
 ## Second validation - on a REAL lab graph (measured-on-itself)
@@ -75,6 +79,7 @@ peer to the audit/EDR profiles:
 - The calibration layer is **functional, not cosmetic**: measured detectability re-orders the
   ranking and changes the top recommendation - across audit, EDR, and Elastic profiles, on both
   a synthetic rich graph and a real, measured-on-itself graph.
-- Audit vs EDR behave sensibly: the EDR profile only diverges where the tool tier adds signal
-  (CanRDP 54.6 -> 60.3), matching `docs/TOOLING_AXIS.md`.
+- Audit vs EDR behave sensibly: the EDR profile diverges only on the credential-theft edges that
+  raised named alerts (DCSync/roasting/SMSA); on paths without those it matches audit, as here.
+  See `docs/TOOLING_AXIS.md`.
 - The sample-graph flip is reproducible with the bundled graph - no lab, no Neo4j, host venv only.

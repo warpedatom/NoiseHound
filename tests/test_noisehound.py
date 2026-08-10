@@ -468,8 +468,8 @@ def test_shipped_measured_profiles_are_valid():
     # The three lab-measured profiles must load and carry their calibrated adjustments.
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     expected = {
-        "vulnad-hyperv-audit": ("DCSync", 59, 29),
-        "vulnad-hyperv-edr": ("DCSync", 85, 29),
+        "vulnad-hyperv-audit": ("DCSync", 59, 30),
+        "vulnad-hyperv-edr": ("DCSync", 85, 30),
         "vulnad-hyperv-elastic": ("SQLAdmin", 64, 10),
     }
     for name, (edge, score, count) in expected.items():
@@ -478,6 +478,10 @@ def test_shipped_measured_profiles_are_valid():
         assert len(p.adjustments) == count
         # adjustments are keyed lowercase internally
         assert p.adjustments[edge.lower()] == score
+    # All four lateral edges are measured and present in the audit profile.
+    audit = EnvironmentProfile.from_file(os.path.join(here, "profiles", "vulnad-hyperv-audit.json"))
+    for lateral in ("canpsremote", "adminto", "executedcom", "sqladmin", "canrdp"):
+        assert lateral in audit.adjustments
 
 
 def test_solver_respects_time_budget():

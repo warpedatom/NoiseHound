@@ -33,6 +33,7 @@
     "CanPSRemote": 40,
     "AdminTo": 34,
     "ExecuteDCOM": 42,
-    "SQLAdmin": 44
+    "SQLAdmin": 44,
+    "CanRDP": 45
   }
 }

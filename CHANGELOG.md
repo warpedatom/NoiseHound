@@ -6,8 +6,9 @@ versioning.
 
 ## [0.7.0] - 2026-08-10
 
-First **lab-measured calibration** release. 29 of 57 corpus edges measured on a
-real Hyper-V Vulnerable-AD range across four detection tiers.
+First **lab-measured calibration** release. 30 of 57 corpus edges measured on a
+real Hyper-V Vulnerable-AD range across four detection tiers - including all four
+lateral-movement edges (CanPSRemote, AdminTo, ExecuteDCOM, CanRDP).
 
 ### Added
 - **Three measured environment profiles** (`profiles/`): `vulnad-hyperv-audit`
