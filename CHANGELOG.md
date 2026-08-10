@@ -4,11 +4,14 @@ All notable changes to NoiseHound are documented here. Format based on
 [Keep a Changelog](https://keepachangelog.com/); this project uses semantic
 versioning.
 
-## [0.7.0] - 2026-08-10
+## [1.0.0] - 2026-08-10
 
-First **lab-measured calibration** release. 30 of 57 corpus edges measured on a
-real Hyper-V Vulnerable-AD range across four detection tiers - including all four
-lateral-movement edges (CanPSRemote, AdminTo, ExecuteDCOM, CanRDP).
+First stable release, and the first **lab-measured calibration**. 30 of 57 corpus
+edges measured on a real Hyper-V Vulnerable-AD range across four detection tiers -
+including all four lateral-movement edges (CanPSRemote, AdminTo, ExecuteDCOM,
+CanRDP). Calibration is honestly scoped: the remaining ~27 edges carry expert
+estimates, and the roadmap (`docs/ROADMAP.md`) tracks the path to full coverage,
+the MDI runtime-alert tier, and Azure/Entra.
 
 ### Added
 - **Three measured environment profiles** (`profiles/`): `vulnad-hyperv-audit`
@@ -22,6 +25,10 @@ lateral-movement edges (CanPSRemote, AdminTo, ExecuteDCOM, CanRDP).
   EDR-signature detection split, and the open-SIEM tier methodology.
 - `windows_system` telemetry source, so System-log events (e.g. SCM 7045) are
   scored and routed to the correct log by the calibration harness.
+- `lab/Measure-CanRDP.ps1` - target-side measure for interactive-logon edges.
+- DeadAir (Rust engine): regression tests pinned to the measured profiles
+  (audit-tier ADCS-ESC1 flip, EDR-tier DCSync loudness) - cross-engine parity
+  with the Python solver. DeadAir bumped to 0.2.0.
 
 ### Fixed
 - **Calibration harness `$Plan` variable collision** (critical): the `[string]$Plan`

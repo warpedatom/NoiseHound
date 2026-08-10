@@ -5,7 +5,7 @@
 <p align="center">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-blue">
   <img alt="python" src="https://img.shields.io/badge/python-3.10%2B-blue">
-  <img alt="status" src="https://img.shields.io/badge/status-beta-orange">
+  <img alt="version" src="https://img.shields.io/badge/version-1.0.0-blue">
   <img alt="tests" src="https://img.shields.io/badge/tests-52%20passing-brightgreen">
 </p>
 
@@ -17,8 +17,8 @@ NoiseHound ingests the same graph data and re-ranks paths by **expected
 detection cost** instead of hop count, so an operator can ask "what is the
 quietest way to Domain Admin" instead of just "what is a way".
 
-> **Project status (beta):** the engine, ingestion, and analysis are complete
-> and tested on real BloodHound data across multiple domains. **30 of 57 corpus
+> **Project status (v1.0):** stable and tested on real BloodHound data across
+> multiple domains. **30 of 57 corpus
 > edges are now lab-measured** across four detection tiers (audit, Defender for
 > Endpoint, Elastic SIEM, and MDI posture) - shipped as drop-in profiles in
 > [`profiles/`](profiles/), with closed-loop proof that they change path rankings
