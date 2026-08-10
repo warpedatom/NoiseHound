@@ -18,11 +18,14 @@ detection cost** instead of hop count, so an operator can ask "what is the
 quietest way to Domain Admin" instead of just "what is a way".
 
 > **Project status (beta):** the engine, ingestion, and analysis are complete
-> and tested on real BloodHound data across multiple domains. The corpus noise
-> scores are currently **expert estimates, not yet lab-measured** - the
-> calibration harness (`noisehound-calibrate`, `docs/CALIBRATION.md`) exists to
-> replace them with measured values. Treat the rankings as well-reasoned
-> guidance, not ground truth, until calibrated for your environment.
+> and tested on real BloodHound data across multiple domains. **29 of 57 corpus
+> edges are now lab-measured** across four detection tiers (audit, Defender for
+> Endpoint, Elastic SIEM, and MDI posture) - shipped as drop-in profiles in
+> [`profiles/`](profiles/), with closed-loop proof that they change path rankings
+> ([`docs/VALIDATION.md`](docs/VALIDATION.md)). The remaining ~28 edges still carry
+> **expert estimates**; the calibration harness (`noisehound-calibrate`,
+> `docs/CALIBRATION.md`) is how they, and your own environment, get measured. Treat
+> uncalibrated rankings as well-reasoned guidance, not ground truth.
 
 > For authorized engagements only. This tool scores attack paths for OPSEC
 > planning against systems you have written permission to test.
@@ -276,18 +279,24 @@ Score precedence: `static -> environment-adjusted -> live (Phase 2)`.
 
 ## Calibration harness
 
-Environment profiles are only as good as the numbers you put in them, and the
-corpus ships expert estimates, not measurements. `noisehound-calibrate` closes
-that loop: run the techniques in a detection lab (Caldera/APT29, a Defender+MDI
-range), record what fired, and it emits a calibrated environment profile.
+Environment profiles are only as good as the numbers you put in them.
+`noisehound-calibrate` closes the loop: run the techniques in a detection lab,
+record what fired, and it emits a calibrated environment profile.
+
+**This has been done.** [`profiles/`](profiles/) ships three measured profiles from
+a real Hyper-V Vulnerable-AD range - audit, EDR (Defender for Endpoint), and Elastic
+SIEM tiers, 29 edges - produced by the automated harness (`lab/`) and this tool. Use
+them directly, or measure your own:
 
 ```bash
-# 1. Compile lab results, tagged by BloodHound edge type (see the sample).
-# 2. Calibrate into an environment profile.
-noisehound-calibrate -i samples/lab_detections.example.json -o env.calibrated.json
+# Use a shipped measured profile:
+noisehound -i export.zip -s jdoe -o "Domain Admins" -e profiles/vulnad-hyperv-audit.json
 
-# 3. Use it like any environment profile.
-python -m noisehound -i export.zip -s jdoe -o "Domain Admins" -e env.calibrated.json
+# Or measure your own lab:
+# 1. noisehound-calibrate --plan -o plan.json   (per-edge detection events)
+# 2. lab/Invoke-NoiseHoundCalibration.ps1        (run + auto-count -> lab_detections.json)
+noisehound-calibrate -i lab_detections.json -o env.calibrated.json
+noisehound -i export.zip -s jdoe -o "Domain Admins" -e env.calibrated.json
 ```
 
 The score model is a shrinkage estimator, honest about sample size:
@@ -404,10 +413,12 @@ detection facts. Tune them against your own lab detection data.
 
 ## Roadmap
 
-- **Run the calibration loop for real.** The harness ships; the remaining work
-  is data. Run the corpus techniques through the APT29/Caldera lab, feed the
-  detections to `noisehound-calibrate`, and commit the resulting profile. This
-  is what turns a plausible ranking into a trustworthy one.
+- **Calibration - done for 29/57 edges, continuing.** Three measured profiles ship
+  in [`profiles/`](profiles/) (audit / EDR / Elastic tiers) with closed-loop
+  validation. Remaining: the other ~28 edges (coercion/relay, ADCS ESC2-13, CanRDP),
+  the **MDI runtime-alert tier** (posture works; the alert path needs a bare-metal/
+  Ludus DC - see `docs/CALIBRATION.md`), and a selectable **tooling-profile axis**
+  (`docs/TOOLING_AXIS.md`) so scores reflect off-the-shelf vs native tradecraft.
 - **Phase 2 - live detection validation.** Replace static scores with
   `live_noise_score` pulled from a real target's Defender/Sysmon/audit config,
   reusing OffsetInspect's detection-boundary logic. `annotate()` already accepts
@@ -434,7 +445,8 @@ edge schema.
 
 ## Calibrating against a lab
 
-The scores are estimates until you measure them. [`docs/CALIBRATION.md`](docs/CALIBRATION.md)
+29 edges are measured (see [`profiles/`](profiles/)); the rest are estimates until
+you measure them, and every environment differs. [`docs/CALIBRATION.md`](docs/CALIBRATION.md)
 is a full playbook: lab topology, the exact Windows audit policy and Sysmon
 config to make the corpus's event IDs fire, a per-edge exercise runbook, an
 APT29-via-Caldera realism layer, and how to compile results into a calibrated

@@ -12,5 +12,11 @@ report.html
 paths.json
 *realdata*
 *_BloodHound.zip
+*-bloodhound.zip
 lab_detections.json
 env.*.json
+# lab/tenant secrets - never commit (MDI/EDR onboarding, keys)
+*.key.txt
+mdi.key.txt
+onboarding*.zip
+_lab_prep/

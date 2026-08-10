@@ -22,9 +22,9 @@
       "reliability": "high"
     },
     {
-      "source": "windows_security",
+      "source": "windows_system",
       "event_id": 7045,
-      "detail": "Service installed on the relay target if a service-based exec is used.",
+      "detail": "Service installed on the relay target if a service-based exec is used. SCM event, logged in System, not Security.",
       "reliability": "high",
       "default_enabled": true
     }

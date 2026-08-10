@@ -434,6 +434,52 @@ def test_calibration_plan_maps_edges_to_detect_events():
     assert all("abuse_primitive" in e and "edr_heuristic" in e for e in plan["edges"])
 
 
+def test_plan_routes_system_log_events():
+    # Regression: 7045 (SCM service-install) lives in the System log, not Security.
+    # The plan must surface it as windows_system so the harness looks in the right log.
+    from noisehound.calibrate import build_plan
+    plan = build_plan(load_corpus())
+    admin = {e["edge_type"]: e for e in plan["edges"]}["AdminTo"]
+    sources = {(d["source"], d["event_id"]) for d in admin["detect_events"]}
+    assert ("windows_system", 7045) in sources
+    assert ("windows_security", 7045) not in sources
+
+
+def test_schema_accepts_windows_system_source():
+    ok = {"edge_type": "X", "static_noise_score": 10,
+          "telemetry": [{"source": "windows_system", "event_id": 7045, "reliability": "high"}]}
+    validate_entry(ok)  # must not raise
+
+
+def test_calibrate_reads_bom_prefixed_input(tmp_path):
+    # Regression: the PS 5.1 harness can emit UTF-8 with a BOM; the reader must tolerate it.
+    from noisehound.calibrate import main as calibrate_main
+    detections = {"environment": "bom-test",
+                  "observations": [{"edge_type": "DCSync", "runs": 4, "detections": 4, "severity": "high"}]}
+    src = tmp_path / "lab_detections.json"
+    src.write_bytes(b"\xef\xbb\xbf" + json.dumps(detections).encode("utf-8"))
+    out = tmp_path / "env.json"
+    assert calibrate_main(["-i", str(src), "-o", str(out), "--quiet"]) == 0
+    prof = json.loads(out.read_text(encoding="utf-8"))
+    assert "DCSync" in prof["adjustments"]
+
+
+def test_shipped_measured_profiles_are_valid():
+    # The three lab-measured profiles must load and carry their calibrated adjustments.
+    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    expected = {
+        "vulnad-hyperv-audit": ("DCSync", 59, 29),
+        "vulnad-hyperv-edr": ("DCSync", 85, 29),
+        "vulnad-hyperv-elastic": ("SQLAdmin", 64, 10),
+    }
+    for name, (edge, score, count) in expected.items():
+        p = EnvironmentProfile.from_file(os.path.join(here, "profiles", name + ".json"))
+        assert p.name == name
+        assert len(p.adjustments) == count
+        # adjustments are keyed lowercase internally
+        assert p.adjustments[edge.lower()] == score
+
+
 def test_solver_respects_time_budget():
     # A tiny time budget must not prevent a correct answer (threshold sweep is
     # always run) and must return promptly.

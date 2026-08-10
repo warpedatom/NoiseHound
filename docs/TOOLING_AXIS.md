@@ -1,0 +1,48 @@
+# The tooling axis - why the EDR tier is not the whole story
+
+Detection splits in two, and **only one half is tool-agnostic**. This is the single
+most important caveat when reading the EDR-tier profile.
+
+- **Technique / audit / identity signals are TOOL-AGNOSTIC.** 4662 (DCSync replication),
+  4769 (Kerberoast), 5136 (ACL change), 4886/4887 (enrollment) fire on the *operation*.
+  mimikatz, DSInternals, bloodyAD, Impacket `secretsdump` all trip the same events -> the
+  audit + identity calibration holds for any tool.
+- **EDR AV-signature detections are TOOL-SPECIFIC and execution-context-dependent.** They
+  fire on the *tool's signature* and only when the binary runs *on the monitored host*.
+
+## Measured evidence
+
+**Kerberoast - QUIET (native) vs LOUD (Rubeus)**, same SPN, same DC:
+
+| Tool | Technique event (4769) | EDR/AV signature alert |
+|------|------------------------|------------------------|
+| Native .NET `KerberosRequestorSecurityToken` | 4769 fired | none |
+| `Rubeus.exe` (GhostPack) `kerberoast` | 4769 fired | "Possible use of the Rubeus kerberoasting tool" (MDE, Medium) |
+
+Audit-tier detection (4769) is identical. The EDR tier only lights up for the signatured binary.
+
+**DCSync - parallel confirmation:**
+
+| Tool | Technique event (4662 DRSR replication) | EDR/AV outcome |
+|------|-----------------------------------------|----------------|
+| `mimikatz.exe` `lsadump::dcsync` | fired | "Mimikatz credential theft tool" (AV, High) + binary quarantined |
+| DSInternals `Get-ADReplAccount` (native) | fired (same DRSR) | no signature alert; not quarantined |
+
+## Identity-tier corroboration (Microsoft Defender for Identity, posture/ISPM)
+MDI's posture engine independently read the lab directory and Completed **39/45** Defender-for-
+Identity assessments covering the same edges calibrated here (ESC1/3/4/6/7/8/11/15, non-admin
+DCSync rights, unsecure Kerberos delegations, gMSA/sMSA, LAPS, krbtgt, SID history). A real
+product flags the same abuse surface from **directory state**, independent of the operator's tool -
+the durable, tool-agnostic identity tier in action. (MDI's *runtime alert* path was dark on the
+Hyper-V lab - a capture-path limitation, see the roadmap - but its posture side reinforces the point.)
+
+## What this means for the scores
+- The **EDR-tier profile (`profiles/vulnad-hyperv-edr.json`) reflects "default off-the-shelf tools,
+  run on the host"** - the loudest case. A capable operator using **remote Impacket / bloodyAD /
+  native tradecraft** performs the identical techniques with a **near-zero endpoint footprint**,
+  caught only by the audit / network / identity tier.
+- So the **audit + identity tiers are the durable, tool-agnostic half** of the calibration; the
+  EDR-signature tier is the "how loud is the default toolkit" half.
+- **Roadmap:** a selectable *tooling-profile axis* (`off-the-shelf-on-host` vs `remote-impacket` vs
+  `native-obfuscated`) so a profile reflects the spread, not just the loudest tool. Until then, read
+  the EDR numbers as the off-the-shelf-on-host baseline.

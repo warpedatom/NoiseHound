@@ -86,13 +86,54 @@ What earns the tool academic/industry respect.
 
 ---
 
-## Status snapshot (v0.4.0)
+## Post-calibration open items (from the 2026-08 lab run)
 
-Shipped: BloodHound CE ingestion (real-data validated), 43-edge corpus, ADCS
-ESC1-8 synthesis, noise-weighted solver with correctness backstop, environment
-profiles, calibration harness, corpus validator + schema + CI, inspect command,
-lab detection-instrumentation kit, full docs. 29 tests, 100% corpus coverage on
-real exports.
+The first real calibration is done: **29/57 edges measured** across audit, EDR
+(Defender for Endpoint), and Elastic SIEM tiers, shipped in `profiles/`, with
+closed-loop validation (`docs/VALIDATION.md`). What that run surfaced as next work,
+by leverage:
 
-Next up when building resumes: **Phase 1, item 1 (blue-team detection-gap
-mode)** - the single highest-leverage feature and fully buildable now.
+**Coverage (highest leverage first)**
+- **Full GOAD on a bare-metal Proxmox box.** The 29 measured are a Vulnerable-AD
+  subset; a Ludus/GOAD build gives the full 57-edge surface *and* unblocks the MDI
+  alert tier (real wire traffic for the sensor) in one investment.
+- **MDI runtime-alert tier.** MDI *posture/ISPM* works and corroborated our edges;
+  the runtime alert path was dark on Hyper-V (capture-path limit, not learning
+  period - a deterministic network Kerberoast produced zero Identity alerts). Redo
+  on a bare-metal/Ludus DC; use Impacket `secretsdump` from Linux for network DCSync.
+- **The remaining ~28 edges:** coercion/relay (needs an inbound-reachable attacker -
+  flat Proxmox L2), ADCS ESC2-13 (share ESC1's 4886/4887 signal), CanRDP (4778),
+  AllExtendedRights (4662 confidential read).
+
+**Harness quality**
+- **Causal correlation + idle-baseline subtraction** (bug #3 remains): score an
+  event only if it references the abuse's target object/actor, above a pre-run
+  baseline. Kills the false-"detected" class on busy DCs.
+- **Native cross-host measurement** (`-TargetComputer`) for lateral/relay edges that
+  land events on the target, not the attacker.
+- **Alert-tier automation:** query the MS Graph Security API for named alerts in the
+  run window and auto-apply the severity bump (replaces the manual portal pass).
+- *(Fixed this release: `$Plan` collision, UTF-8 BOM interop, and per-source log
+  resolution incl. System-log 7045.)*
+
+**Tooling-profile axis (`docs/TOOLING_AXIS.md`)** - a selectable
+`{offtheshelf-onhost, remote-impacket, native-obfuscated}` dimension so a profile
+reflects the tooling spread, not just the loudest case. Most-requested conceptual gap.
+
+**Lab / DeadAir / validation**
+- Consolidate the piecemeal `lab/` build scripts into one idempotent
+  `Deploy-CalibrationLab.ps1`; bake 4769/4768/4886/4887 into an authoritative GPO so
+  MDI's config GPO stops clobbering them.
+- DeadAir: add regression fixtures using the measured profiles; add a `cargo bench`.
+- Commit the real lab graph as a regression fixture with an asserted quietest-path
+  (P2); ship the Elastic stack as a documented "stand up your own SIEM tier" recipe.
+- **Azure/Entra** is a separate track, gated on the corpus first gaining AZ* edges.
+
+## Status snapshot
+
+Shipped: BloodHound CE ingestion (real-data validated), 57-edge corpus, ADCS
+ESC1-13 synthesis, noise-weighted solver with correctness backstop, environment
+profiles, **automated calibration harness + 3 measured profiles (audit/EDR/Elastic)**,
+blue-team detection-gap mode, Sigma coverage, probabilistic + Pareto pathing, live
+Neo4j read/write-back, DeadAir Rust engine + `--engine` dispatch, corpus validator +
+schema + CI. 52 tests, 100% corpus coverage on real exports.

@@ -11,6 +11,7 @@ from typing import Any
 
 VALID_SOURCES = {
     "windows_security",
+    "windows_system",   # System event log (e.g. SCM 7045 service-install), distinct from Security
     "sysmon",
     "network",
     "edr_heuristic",

@@ -59,7 +59,8 @@ class EnvironmentProfile:
 
     @classmethod
     def from_file(cls, path: str) -> "EnvironmentProfile":
-        with open(path, "r", encoding="utf-8") as fh:
+        # utf-8-sig tolerates a BOM (Windows-generated profiles may carry one).
+        with open(path, "r", encoding="utf-8-sig") as fh:
             return cls.from_dict(json.load(fh))
 
     @property

@@ -4,6 +4,35 @@ All notable changes to NoiseHound are documented here. Format based on
 [Keep a Changelog](https://keepachangelog.com/); this project uses semantic
 versioning.
 
+## [0.7.0] - 2026-08-10
+
+First **lab-measured calibration** release. 29 of 57 corpus edges measured on a
+real Hyper-V Vulnerable-AD range across four detection tiers.
+
+### Added
+- **Three measured environment profiles** (`profiles/`): `vulnad-hyperv-audit`
+  (audit + Sysmon), `vulnad-hyperv-edr` (Defender for Endpoint severity pass), and
+  `vulnad-hyperv-elastic` (open/free Elastic SIEM). Drop-in for `-e`. Notable: the
+  free Elastic rules caught SQLAdmin at high (64) where MDE fired no named alert.
+- **Closed-loop validation** (`docs/VALIDATION.md`) - applying a measured profile
+  changes the recommended quietest path (sample graph: flips the #1 to a 1-hop ADCS
+  ESC1; real graph: top-path P(detect) 62%->77%), proving calibration is functional.
+- **`docs/TOOLING_AXIS.md`** and **`docs/ELASTIC_TIER.md`** - the tool-agnostic vs
+  EDR-signature detection split, and the open-SIEM tier methodology.
+- `windows_system` telemetry source, so System-log events (e.g. SCM 7045) are
+  scored and routed to the correct log by the calibration harness.
+
+### Fixed
+- **Calibration harness `$Plan` variable collision** (critical): the `[string]$Plan`
+  parameter aliased the parsed-plan variable (PowerShell is case-insensitive) and
+  coerced it back to a string, so every edge was skipped and the harness calibrated
+  nothing. Renamed the internal variable and added a parse guard.
+- **UTF-8 BOM interop**: `noisehound-calibrate` and environment-profile loading now
+  read `utf-8-sig`, and the harness writes UTF-8 without a BOM - PS 5.1 output no
+  longer trips a "Unexpected UTF-8 BOM" error.
+- **7045 log source**: corrected from `windows_security` to `windows_system` (SCM
+  service-install lives in the System log); the harness resolves the log per source.
+
 ## [0.6.0] - 2026-07-29
 
 First public release. Real-data hardening across three distinct labs.

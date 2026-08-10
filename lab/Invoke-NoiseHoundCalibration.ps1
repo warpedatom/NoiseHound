@@ -42,17 +42,34 @@ param(
 $ErrorActionPreference = "Stop"
 Write-Host "NoiseHound automated calibration - LAB USE ONLY`n" -ForegroundColor Cyan
 
-$plan = Get-Content -Raw $Plan | ConvertFrom-Json
+# NOTE: the internal variable must NOT be named $plan. PowerShell variable names
+# are case-insensitive, so $plan would alias the [string]$Plan parameter, whose
+# type constraint coerces the parsed JSON back into a string - making .edges null
+# and silently skipping every edge. Use a distinct name.
+$planData = Get-Content -Raw $Plan | ConvertFrom-Json
 $cmds = Get-Content -Raw $Commands | ConvertFrom-Json
 
 $planByEdge = @{}
-foreach ($e in $plan.edges) { $planByEdge[$e.edge_type] = $e }
+foreach ($e in $planData.edges) { $planByEdge[$e.edge_type] = $e }
+if ($planByEdge.Count -eq 0) {
+    throw "plan parse failed: no edges found in '$Plan'. Regenerate it with 'noisehound-calibrate --plan -o plan.json'."
+}
 
+# NOTE (known limitation): this counts ANY matching event ID in the post-run
+# window, not only events the abuse itself caused - a busy or shared DC can yield
+# a false "detected" from background activity. Causal correlation (filter by the
+# target DN / SPN we touched) and idle-baseline subtraction are on the roadmap.
 function Get-DetectHits($detectEvents, $start) {
     $hits = @()
     foreach ($d in $detectEvents) {
         if ($d.source -eq "sysmon" -and -not $Sysmon) { continue }
-        $log = if ($d.source -eq "sysmon") { "Microsoft-Windows-Sysmon/Operational" } else { "Security" }
+        # Resolve the correct event log per source. Service-install 7045 and other
+        # SCM events live in System, not Security - a Security-only lookup misses them.
+        $log = switch ($d.source) {
+            "sysmon"         { "Microsoft-Windows-Sysmon/Operational" }
+            "windows_system" { "System" }
+            default          { "Security" }
+        }
         try {
             $n = @(Get-WinEvent -FilterHashtable @{ LogName = $log; Id = [int]$d.event_id; StartTime = $start } -ErrorAction SilentlyContinue).Count
         } catch { $n = 0 }
@@ -104,5 +121,8 @@ $result = [ordered]@{
     object_auditing_4662 = [bool]$Auditing4662
     observations = $observations
 }
-$result | ConvertTo-Json -Depth 6 | Set-Content -Encoding UTF8 $Out
+# Write UTF-8 WITHOUT a BOM. PS 5.1 'Set-Content -Encoding UTF8' prepends a BOM
+# that noisehound-calibrate's strict UTF-8 reader rejects ("Unexpected UTF-8 BOM").
+$outPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Out)
+[System.IO.File]::WriteAllText($outPath, ($result | ConvertTo-Json -Depth 6), (New-Object System.Text.UTF8Encoding($false)))
 Write-Host ("`nWrote {0} ({1} edges tested). Do the severity pass, then run noisehound-calibrate." -f $Out, $observations.Count) -ForegroundColor Cyan

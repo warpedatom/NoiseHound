@@ -11,9 +11,9 @@
       "default_enabled": true
     },
     {
-      "source": "windows_security",
+      "source": "windows_system",
       "event_id": 7045,
-      "detail": "New service installed - fires for PsExec-style movement (the loudest option).",
+      "detail": "New service installed - fires for PsExec-style movement (the loudest option). SCM event, logged in System, not Security.",
       "reliability": "high",
       "default_enabled": true
     },

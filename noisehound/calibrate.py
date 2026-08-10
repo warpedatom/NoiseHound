@@ -228,7 +228,7 @@ def build_plan(corpus) -> dict:
     for entry in sorted(corpus, key=lambda e: e["edge_type"]):
         detect = []
         for t in entry.get("telemetry", []) or []:
-            if t.get("source") in ("windows_security", "sysmon") and t.get("event_id") is not None:
+            if t.get("source") in ("windows_security", "windows_system", "sysmon") and t.get("event_id") is not None:
                 detect.append({
                     "source": t["source"],
                     "event_id": t["event_id"],
@@ -288,7 +288,9 @@ def main(argv: list | None = None) -> int:
         return 2
 
     try:
-        with open(args.input, "r", encoding="utf-8") as fh:
+        # utf-8-sig tolerates a BOM: the PS 5.1 harness (and many Windows tools)
+        # emit UTF-8 with a BOM that a strict utf-8 read would reject.
+        with open(args.input, "r", encoding="utf-8-sig") as fh:
             detections = json.load(fh)
     except (FileNotFoundError, json.JSONDecodeError) as exc:
         print("input error: %s" % exc, file=sys.stderr)
