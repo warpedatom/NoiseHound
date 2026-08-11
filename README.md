@@ -89,7 +89,7 @@ caught than a long but quiet one. Rank by it with `--rank-by probability`.
 
 ### Two-tier engine (DeadAir)
 
-For large graphs the solve is dispatched to [DeadAir](../deadair), a companion
+For large graphs the solve is dispatched to [DeadAir](https://github.com/warpedatom/DeadAir), a companion
 Rust engine (the OffsetScan-to-OffsetInspect tier). NoiseHound stays the
 feature-rich frontend - ingestion, corpus, environment/Sigma, constraints,
 reporting - and hands the prepared graph to whichever engine solves it, so
