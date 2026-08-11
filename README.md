@@ -20,6 +20,11 @@ NoiseHound ingests the same graph data and re-ranks paths by **expected
 detection cost** instead of hop count, so an operator can ask "what is the
 quietest way to Domain Admin" instead of just "what is a way".
 
+> **New here? Start with the [Operator Walkthrough](docs/WALKTHROUGH.md)** — a
+> hands-on, screenshot-driven tutorial that takes you from install to a live
+> BloodHound CE proof of concept (scores written back into the BloodHound UI),
+> the DeadAir engine, and the blue-team detection-gap report.
+
 > **Project status (v1.0):** stable and tested on real BloodHound data across
 > multiple domains. **30 of 57 corpus
 > edges are now lab-measured** across four detection tiers (audit, Defender for
@@ -486,5 +491,8 @@ edge_mappings/     the telemetry corpus (one JSON per edge type) - the IP
 samples/           sample_graph.json, sample_bloodhound_ce.zip, sample_adcs_ce.zip,
                    sample_fullspectrum_ce.zip, env_profile.example.json,
                    lab_detections.example.json, sample_report.html
+docs/              WALKTHROUGH.md (start here), CYPHER.md, VALIDATION.md,
+                   CALIBRATION.md, ROADMAP.md, seed_demo_graph.cypher,
+                   seed_showcase_graph.cypher, images/
 tests/             unit + end-to-end tests
 ```

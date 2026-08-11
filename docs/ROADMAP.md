@@ -47,11 +47,27 @@ The credibility core. None of this needs external data.
 
 Meet users where they already are.
 
-6. **Native BloodHound CE / Neo4j integration.** *(Bolt read: shipped in v0.5.0,
-   `neo4j_ingest.py` - pending live validation against a running instance.)*
-   Remaining: write noise back as edge/node properties, plus a Cypher query pack,
-   so "quietest path" is visible inside the BloodHound UI, and hook into
-   SpecterOps OpenGraph for custom edges.
+6. **Native BloodHound CE / Neo4j integration.** *(Bolt read + write-back +
+   Cypher pack + operator walkthrough with UI screenshots: shipped in v1.0.0 -
+   `noisehound-writeback`, `docs/CYPHER.md`, `docs/WALKTHROUGH.md`, live-validated
+   against a running BHCE stack.)* Remaining: hook into SpecterOps OpenGraph for
+   custom edges.
+   - **Ship a BHCE-ingestable bundled sample (buildable now).** Learning from the
+     v1.0.0 walkthrough: the tiny hand-authored `sample_*_ce.zip` fixtures are
+     fine for the CLI (NoiseHound's own parser reads `LocalAdmins`/`Sessions`),
+     but BHCE's *ingestion* will not synthesise computer/session edges (`AdminTo`,
+     `HasSession`, `CanRDP`) from a minimal fixture, and drops a collection with no
+     `domains.json` to 0 nodes. The walkthrough works around this with safe,
+     additive Cypher seeds (`docs/seed_demo_graph.cypher`,
+     `docs/seed_showcase_graph.cypher`). The real fix: sanitise a *real* SharpHound
+     collection (VM Claude already has `_lab_prep/sevenkingdoms-bloodhound.zip`,
+     351 objects, full coverage) into a bundled `samples/sample_lab_ce.zip` that
+     ingests cleanly, so the UI walkthrough is a pure "upload → writeback → view"
+     flow with no seed step. Doubles as a BHCE-ingestion regression fixture.
+   - **`noisehound-writeback --dry-run` (buildable now, nice-to-have).** Writeback
+     is already non-destructive (it only `SET`s `r.noise`/`r.noise_known`), but a
+     dry-run that reports the edges it *would* stamp reassures cautious operators
+     running it against a production BloodHound instance.
 7. **Score against deployed detections.** *(Tier 2 - Sigma rule coverage -
    shipped in v0.5.0, `noisehound-sigma`.)* Remaining tiers: live SIEM/EDR API
    ingestion (Splunk/Sentinel/Elastic/MDI) to compute coverage from a running

@@ -1,0 +1,16 @@
+{
+  "nodes": [
+    {"id": "S-1-5-21-CORP-1104", "name": "JDOE@CORP.LOCAL", "type": "User"},
+    {"id": "S-1-5-21-CORP-1105", "name": "HELPDESK@CORP.LOCAL", "type": "Group"},
+    {"id": "S-1-5-21-CORP-1106", "name": "WK1@CORP.LOCAL", "type": "Computer"},
+    {"id": "S-1-5-21-CORP-1107", "name": "SVC@CORP.LOCAL", "type": "User"},
+    {"id": "S-1-5-21-CORP-512", "name": "DOMAIN ADMINS@CORP.LOCAL", "type": "Group"}
+  ],
+  "edges": [
+    {"source": "S-1-5-21-CORP-1104", "target": "S-1-5-21-CORP-1105", "edge_type": "MemberOf",    "noise": 2.0,  "corpus_known": true},
+    {"source": "S-1-5-21-CORP-1105", "target": "S-1-5-21-CORP-1106", "edge_type": "AdminTo",     "noise": 25.0, "corpus_known": true},
+    {"source": "S-1-5-21-CORP-1106", "target": "S-1-5-21-CORP-1107", "edge_type": "HasSession",  "noise": 20.0, "corpus_known": true},
+    {"source": "S-1-5-21-CORP-1107", "target": "S-1-5-21-CORP-512",  "edge_type": "MemberOf",    "noise": 2.0,  "corpus_known": true},
+    {"source": "S-1-5-21-CORP-1104", "target": "S-1-5-21-CORP-1107", "edge_type": "GenericAll",  "noise": 40.0, "corpus_known": true}
+  ]
+}
