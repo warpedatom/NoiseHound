@@ -1,0 +1,25 @@
+{
+  "edge_type": "AZAddOwner",
+  "description": "Can add an owner to an application or service principal (owners can then add credentials).",
+  "static_noise_score": 52,
+  "telemetry": [
+    {
+      "source": "entra_audit",
+      "event_id": null,
+      "detail": "Entra ID audit log: 'Add owner to application / Add owner to service principal' (directory logging is default-on).",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "mdca",
+      "event_id": null,
+      "product_class": "MDCA",
+      "detail": "Anomaly policies may flag ownership changes on privileged apps.",
+      "reliability": "medium"
+    }
+  ],
+  "mitre_technique": "T1098",
+  "prerequisite_privilege": "Owner or a directory role permitting ownership changes",
+  "abuse_primitive": "Add a controlled principal as owner of a privileged app, then add a secret.",
+  "notes": "Ownership change is audited; usually a stepping stone to AZAddSecret."
+}

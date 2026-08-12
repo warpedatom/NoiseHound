@@ -1,0 +1,24 @@
+{
+  "edge_type": "AZVMContributor",
+  "description": "Virtual Machine Contributor / run-command rights - execute code on an Azure VM as SYSTEM/root.",
+  "static_noise_score": 56,
+  "telemetry": [
+    {
+      "source": "azure_activity",
+      "event_id": null,
+      "detail": "Azure Activity log: Microsoft.Compute/virtualMachines/runCommand/action (Run Command on VM) (default-on).",
+      "reliability": "high"
+    },
+    {
+      "source": "edr_heuristic",
+      "event_id": null,
+      "product_class": "MDE",
+      "detail": "If the VM is onboarded to Defender for Endpoint, the executed payload is caught on-host.",
+      "reliability": "high"
+    }
+  ],
+  "mitre_technique": "T1651",
+  "prerequisite_privilege": "Virtual Machine Contributor (or Owner/Contributor) on the VM",
+  "abuse_primitive": "az vm run-command invoke to run a script as SYSTEM; or read the VM's managed-identity token.",
+  "notes": "Run-command writes to the Azure Activity log and, if the VM has EDR, is loud on-host."
+}

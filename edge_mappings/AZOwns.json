@@ -1,0 +1,18 @@
+{
+  "edge_type": "AZOwns",
+  "description": "Ownership of an Entra object (app, SP, or group) - a standing right, not an action.",
+  "static_noise_score": 38,
+  "telemetry": [
+    {
+      "source": "entra_audit",
+      "event_id": null,
+      "detail": "Entra ID audit log: 'No event for merely holding ownership; the abuse (Add credential/owner/member) is what logs.' (directory logging is default-on).",
+      "reliability": "low",
+      "default_enabled": true
+    }
+  ],
+  "mitre_technique": "T1098",
+  "prerequisite_privilege": "Owner of the target object",
+  "abuse_primitive": "Ownership itself is passive; exercise it via AZAddSecret / AZAddOwner / AZAddMembers.",
+  "notes": "Scored low because it is the right, not the act - the chosen follow-on action sets the real detection cost."
+}

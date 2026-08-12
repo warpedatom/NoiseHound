@@ -16,6 +16,14 @@ VALID_SOURCES = {
     "network",
     "edr_heuristic",
     "etw",
+    # Azure / Entra ID sources. Unlike on-prem SACLs, Entra audit + sign-in logging
+    # is default-ON, so cloud control-plane actions are almost always *logged*; the
+    # noise score turns on whether they are *alerted* (MDCA / ID Protection / SIEM).
+    "entra_audit",          # Entra ID audit logs (directory control-plane operations)
+    "entra_signin",         # Entra ID sign-in logs (interactive + service principal)
+    "entra_id_protection",  # Entra ID Protection risk detections
+    "azure_activity",       # Azure Activity / resource-plane logs (ARM, Key Vault, VM)
+    "mdca",                 # Microsoft Defender for Cloud Apps (activity/anomaly policies)
 }
 
 VALID_RELIABILITY = {

@@ -4,6 +4,18 @@ All notable changes to NoiseHound are documented here. Format based on
 [Keep a Changelog](https://keepachangelog.com/); this project uses semantic
 versioning.
 
+## [Unreleased]
+
+### Added
+- **Azure / Entra ID foundation.** 13 `AZ*` attack-path edges (roles/privesc, app
+  & service-principal credential abuse, RBAC, account takeover, resource execution)
+  with Entra-native detection telemetry, plus five Entra/Azure telemetry sources
+  (`entra_audit`, `entra_signin`, `entra_id_protection`, `azure_activity`, `mdca`).
+  Azure data collected via AzureHound into BloodHound CE is scored today; a
+  synthetic `samples/sample_azure.json` and `docs/AZURE.md` ship with it. Corpus
+  is now 70 edges (57 on-prem + 13 Azure). Azure edges are expert estimates
+  pending a measured Azure calibration tier.
+
 ## [1.0.0] - 2026-08-10
 
 First stable release, and the first **lab-measured calibration**. 30 of 57 corpus

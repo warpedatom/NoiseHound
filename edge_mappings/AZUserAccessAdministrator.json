@@ -1,0 +1,24 @@
+{
+  "edge_type": "AZUserAccessAdministrator",
+  "description": "Azure RBAC User Access Administrator - can grant any Azure RBAC role (incl. Owner) on any resource scope.",
+  "static_noise_score": 60,
+  "telemetry": [
+    {
+      "source": "azure_activity",
+      "event_id": null,
+      "detail": "Azure Activity log: Microsoft.Authorization/roleAssignments/write (Create role assignment) (default-on).",
+      "reliability": "high"
+    },
+    {
+      "source": "mdca",
+      "event_id": null,
+      "product_class": "MDCA",
+      "detail": "Privileged Azure RBAC role assignment can be flagged by anomaly policies.",
+      "reliability": "medium"
+    }
+  ],
+  "mitre_technique": "T1098.003",
+  "prerequisite_privilege": "User Access Administrator (or Owner) on the target scope",
+  "abuse_primitive": "Grant yourself Owner/Contributor on a subscription/resource-group, then act on resources.",
+  "notes": "Role assignments write to the Azure Activity log (default-on); alerting depends on Defender for Cloud / Sentinel."
+}

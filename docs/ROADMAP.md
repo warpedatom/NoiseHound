@@ -88,7 +88,7 @@ What earns the tool academic/industry respect.
 
 ## Post-calibration open items (from the 2026-08 lab run)
 
-The first real calibration is done: **29/57 edges measured** across audit, EDR
+The first real calibration is done: **30/57 on-prem edges measured** across audit, EDR
 (Defender for Endpoint), and Elastic SIEM tiers, shipped in `profiles/`, with
 closed-loop validation (`docs/VALIDATION.md`). What that run surfaced as next work,
 by leverage:
@@ -127,13 +127,15 @@ reflects the tooling spread, not just the loudest case. Most-requested conceptua
 - DeadAir: add regression fixtures using the measured profiles; add a `cargo bench`.
 - Commit the real lab graph as a regression fixture with an asserted quietest-path
   (P2); ship the Elastic stack as a documented "stand up your own SIEM tier" recipe.
-- **Azure/Entra** is a separate track, gated on the corpus first gaining AZ* edges.
+- **Azure/Entra** - foundation shipped (13 `AZ*` edges + Entra telemetry,
+  `docs/AZURE.md`). Next: AzureHound-native ingest, Entra posture profiles, hybrid
+  edges (so MDI contributes), and a measured Azure calibration tier.
 
 ## Status snapshot
 
-Shipped: BloodHound CE ingestion (real-data validated), 57-edge corpus, ADCS
+Shipped: BloodHound CE ingestion (real-data validated), 70-edge corpus (57 on-prem + 13 Azure/Entra), ADCS
 ESC1-13 synthesis, noise-weighted solver with correctness backstop, environment
 profiles, **automated calibration harness + 3 measured profiles (audit/EDR/Elastic)**,
 blue-team detection-gap mode, Sigma coverage, probabilistic + Pareto pathing, live
 Neo4j read/write-back, DeadAir Rust engine + `--engine` dispatch, corpus validator +
-schema + CI. 52 tests, 100% corpus coverage on real exports.
+schema + CI, Azure/Entra foundation. 54 tests, 100% corpus coverage on real exports.

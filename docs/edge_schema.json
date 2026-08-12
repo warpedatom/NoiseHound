@@ -31,11 +31,12 @@
         "properties": {
           "source": {
             "type": "string",
-            "enum": ["windows_security", "windows_system", "sysmon", "network", "edr_heuristic", "etw"]
+            "enum": ["windows_security", "windows_system", "sysmon", "network", "edr_heuristic", "etw",
+                     "entra_audit", "entra_signin", "entra_id_protection", "azure_activity", "mdca"]
           },
           "event_id": {
             "type": ["integer", "null"],
-            "description": "Event ID for windows_security/windows_system/sysmon sources; null if not applicable."
+            "description": "Numeric event ID for windows_security/windows_system/sysmon; null for Azure/Entra (use activity name in detail) and other sources."
           },
           "detail": { "type": "string" },
           "reliability": {

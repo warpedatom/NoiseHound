@@ -22,6 +22,7 @@ from noisehound.solver import score_path, solve
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SAMPLE = os.path.join(ROOT, "samples", "sample_graph.json")
+AZURE = os.path.join(ROOT, "samples", "sample_azure.json")
 
 
 def test_corpus_loads_and_validates():
@@ -111,6 +112,40 @@ def test_unknown_edge_marks_path():
     assert "SyncedToEntraUser" in stats.unknown_types
     assert stats.unknown_edges >= 1
     assert stats.coverage < 1.0
+
+
+def test_corpus_has_azure_edges():
+    corpus = load_corpus()
+    types = {e["edge_type"] for e in corpus}
+    for az in ("AZGlobalAdmin", "AZAddSecret", "AZUserAccessAdministrator", "AZVMContributor"):
+        assert az in types, "missing Azure edge %s" % az
+    # Azure edges carry Entra-native telemetry that the schema accepts.
+    add_secret = next(e for e in corpus if e["edge_type"] == "AZAddSecret")
+    assert any(t["source"] == "entra_audit" for t in add_secret["telemetry"])
+    # Real corpus scores (not the fail-safe default); passive rights score low.
+    assert corpus.static_score("AZAddSecret") == (55.0, True)
+    assert corpus.static_score("AZOwns")[0] < 45
+    assert corpus.static_score("AZHasRole")[0] < 45
+
+
+def test_azure_graph_scores_and_ranks():
+    # The synthetic Entra graph is fully covered, and the quietest route to
+    # Global Administrator hops through group ownership, not the VM or reset routes.
+    g = load_graph(AZURE)
+    stats = annotate(g, load_corpus())
+    assert stats.coverage == 1.0
+    paths = solve(g, find_node(g, "analyst@contoso.onmicrosoft.com"),
+                  find_node(g, "Global Administrator"), k=5)
+    assert paths
+    # Quietest route hops through an owned, over-privileged service principal
+    # (AZOwns -> AZHasRole), beating the louder secret/reset/VM routes.
+    top_edges = [e["edge_type"] for e in paths[0].edges]
+    assert "AZOwns" in top_edges and "AZHasRole" in top_edges
+    assert round(paths[0].path_score, 1) == 39.6
+    assert [p.path_score for p in paths] == sorted(p.path_score for p in paths)
+    # AZAddSecret is corpus-scored (55), not the fail-safe default, and ranks louder.
+    secret = [p for p in paths if any(e["edge_type"] == "AZAddSecret" for e in p.edges)]
+    assert secret and secret[0].path_score > paths[0].path_score
 
 
 def _annotated(edges, nodes=None):

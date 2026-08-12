@@ -21,14 +21,14 @@ detection cost** instead of hop count, so an operator can ask "what is the
 quietest way to Domain Admin" instead of just "what is a way".
 
 > **Project status (v1.0):** stable and tested on real BloodHound data across
-> multiple domains. **30 of 57 corpus
-> edges are now lab-measured** across four detection tiers (audit, Defender for
-> Endpoint, Elastic SIEM, and MDI posture) - shipped as drop-in profiles in
-> [`profiles/`](profiles/), with closed-loop proof that they change path rankings
-> ([`docs/VALIDATION.md`](docs/VALIDATION.md)). The remaining ~28 edges still carry
-> **expert estimates**; the calibration harness (`noisehound-calibrate`,
-> `docs/CALIBRATION.md`) is how they, and your own environment, get measured. Treat
-> uncalibrated rankings as well-reasoned guidance, not ground truth.
+> multiple domains. **30 of the 57 on-prem edges are lab-measured** across four
+> detection tiers (audit, Defender for Endpoint, Elastic SIEM, and MDI posture) -
+> shipped as drop-in profiles in [`profiles/`](profiles/), with closed-loop proof
+> they change path rankings ([`docs/VALIDATION.md`](docs/VALIDATION.md)). The corpus
+> also now includes 13 **Azure/Entra** edges ([`docs/AZURE.md`](docs/AZURE.md)).
+> Un-measured on-prem and all Azure edges carry **expert estimates**; the calibration
+> harness (`noisehound-calibrate`) is how they, and your own environment, get
+> measured. Treat uncalibrated rankings as well-reasoned guidance, not ground truth.
 
 > For authorized engagements only. This tool scores attack paths for OPSEC
 > planning against systems you have written permission to test.
@@ -416,21 +416,30 @@ detection facts. Tune them against your own lab detection data.
 
 ## Roadmap
 
-- **Calibration - done for 30/57 edges, continuing.** Three measured profiles ship
-  in [`profiles/`](profiles/) (audit / EDR / Elastic tiers) with closed-loop
-  validation. Remaining: the other ~28 edges (coercion/relay, ADCS ESC2-13, CanRDP),
-  the **MDI runtime-alert tier** (posture works; the alert path needs a bare-metal/
-  Ludus DC - see `docs/CALIBRATION.md`), and a selectable **tooling-profile axis**
-  (`docs/TOOLING_AXIS.md`) so scores reflect off-the-shelf vs native tradecraft.
-- **Phase 2 - live detection validation.** Replace static scores with
-  `live_noise_score` pulled from a real target's Defender/Sysmon/audit config,
-  reusing OffsetInspect's detection-boundary logic. `annotate()` already accepts
-  a `live_scores` override; the CLI hook lands in Phase 2.
-- **Live Neo4j ingestion** over Bolt against the same DB SharpHound populates
-  (offline zip ingestion ships now).
-- **ADCS ESC9/10/13** synthesis (ESC1-8 ship now).
-- **Rust port** of the scoring engine (petgraph), mirroring the
-  OffsetInspect -> OffsetScan pattern, once the data model is proven.
+- **Azure / Entra ID coverage (foundation shipped, expanding).** 13 `AZ*`
+  attack-path edges now ship with Entra-native detection telemetry - see
+  [`docs/AZURE.md`](docs/AZURE.md). Azure data collected via AzureHound into
+  BloodHound CE is scored today (`noisehound -o "Global Administrator"`). Next:
+  AzureHound-native ingestion, Entra posture profiles (MDCA / ID Protection /
+  Sentinel), hybrid edges (Entra Connect / PHS-PTA) so **MDI** contributes across
+  the on-prem/cloud boundary, and a measured Azure calibration tier.
+- **Selectable tooling-profile axis** (`docs/TOOLING_AXIS.md`). Let the operator pick
+  `off-the-shelf-on-host` vs `remote-impacket` vs `native-obfuscated` so EDR-tier
+  scores reflect the real tooling footprint, not just the loudest case.
+- **Finish calibration - 30/57 measured, continuing.** Remaining ~27 edges
+  (coercion/relay, ADCS ESC2-13), the **MDI runtime-alert tier** (posture works;
+  the alert path needs a bare-metal/Ludus DC - see `docs/CALIBRATION.md`), and a
+  multi-EDR corpus (CrowdStrike/S1 beside MDE).
+- **MDI as a first-class detection source.** Map MDI's posture (ISPM) assessments
+  and named identity alerts to corpus edges - a coverage view like `noisehound-sigma`
+  but for Defender for Identity.
+- **Phase 2 - live detection validation.** Wire the existing `annotate()`
+  `live_scores` hook into the CLI so static scores are replaced by a real target's
+  Defender/Sysmon/audit posture, reusing OffsetInspect's detection-boundary logic.
+- **ADCS ESC10a/10b/13 synthesis** (ESC1-9 synthesis ships now).
+
+Shipped since earlier drafts: the Rust engine ([DeadAir](../deadair), `--engine`
+dispatch) and live Neo4j Bolt ingestion (`--input bolt://...`).
 
 ## Contributing
 
