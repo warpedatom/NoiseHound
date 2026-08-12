@@ -73,32 +73,41 @@ def annotate(
     the endpoint-signature component of tool-sensitive edges.
     """
     live_scores = live_scores or {}
+    # Case-insensitive view of edge-type-keyed live scores (tuple keys excluded),
+    # so a --live-scores by_edge_type entry matches regardless of key casing.
+    _et_live = {k.lower(): v for k, v in live_scores.items() if isinstance(k, str)}
     total = known = unknown = 0
     unknown_types: set = set()
 
     for src, dst, data in g.edges(data=True):
         candidate_types = data.get("edge_types") or [data.get("edge_type")]
 
+        # Pick the quietest candidate right by its *tooling-adjusted* base, so
+        # --tooling can prefer a right that is louder statically but quieter under
+        # the declared tradecraft. Without --tooling the base equals the static
+        # score, so selection is unchanged.
         best_type = None
         best_static = None
+        best_base = None
         best_known = False
         for et in candidate_types:
             static, is_known = corpus.static_score(et)
-            if best_static is None or static < best_static:
+            cand_base = _tooling_base(corpus.get(et), static, tooling)
+            if best_base is None or cand_base < best_base:
+                best_base = cand_base
                 best_static = static
                 best_type = et
                 best_known = is_known
 
         entry = corpus.get(best_type)
-        base = _tooling_base(entry, best_static, tooling)
-        env_score = adjust_score(base, entry, best_type, environment)
+        env_score = adjust_score(best_base, entry, best_type, environment)
 
         # An edge-type-level live override applies as a fallback when there is no
         # (src, dst, edge_type) specific one - so a --live-scores file can key by
         # edge type alone.
         live = live_scores.get((src, dst, best_type))
         if live is None:
-            live = live_scores.get(best_type)
+            live = _et_live.get(best_type.lower())
         effective = float(live) if live is not None else float(env_score)
 
         data["edge_type"] = best_type

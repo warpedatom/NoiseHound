@@ -88,13 +88,24 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def _domain_hint(graph, node) -> str:
+    """Domain label from a node's UPN-style name (part after '@'), else ''.
+
+    Avoids labelling the whole node name as a domain for principals without a
+    domain suffix (e.g. an Entra role objective like "Global Administrator").
+    """
+    name = graph.nodes[node].get("name", "") if node in graph else ""
+    name = name or ""
+    return name.split("@", 1)[1] if "@" in name else ""
+
+
 def _render_text(result: dict) -> str:
     lines = []
     lines.append("NoiseHound %s" % result.get("version", ""))
-    lines.append("Domain: %s   Source: %s -> Objective: %s"
-                 % (result.get("target_domain", "?"),
-                    result.get("source_principal", "?"),
-                    result.get("objective", "?")))
+    dom = result.get("target_domain") or ""
+    src_obj = ("Source: %s -> Objective: %s"
+               % (result.get("source_principal", "?"), result.get("objective", "?")))
+    lines.append(("Domain: %s   %s" % (dom, src_obj)) if dom else src_obj)
     if result.get("environment"):
         lines.append("Environment profile applied: %s" % result["environment"])
     if result.get("constraints"):
@@ -204,13 +215,15 @@ def main(argv: list | None = None) -> int:
         try:
             with open(args.live_scores, "r", encoding="utf-8-sig") as fh:
                 spec = json.load(fh)
-        except (FileNotFoundError, json.JSONDecodeError) as exc:
+            if not isinstance(spec, dict):
+                raise ValueError("top-level JSON must be an object")
+            for et, sc in (spec.get("by_edge_type") or {}).items():
+                live_scores[et] = float(sc)
+            for o in (spec.get("overrides") or []):
+                live_scores[(o["source"], o["target"], o["edge_type"])] = float(o["score"])
+        except (FileNotFoundError, json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
             print("live-scores error: %s" % exc, file=sys.stderr)
             return 2
-        for et, sc in (spec.get("by_edge_type") or {}).items():
-            live_scores[et] = float(sc)
-        for o in (spec.get("overrides") or []):
-            live_scores[(o["source"], o["target"], o["edge_type"])] = float(o["score"])
 
     stats = annotate(graph, corpus, live_scores=live_scores,
                      environment=environment, tooling=args.tooling)
@@ -249,7 +262,7 @@ def main(argv: list | None = None) -> int:
 
     result = build_result(
         paths,
-        target_domain=args.domain or graph.nodes[dst].get("name", "").split("@")[-1],
+        target_domain=args.domain or _domain_hint(graph, dst) or _domain_hint(graph, src),
         objective=args.objective,
         source_principal=args.source,
         stats=stats,
