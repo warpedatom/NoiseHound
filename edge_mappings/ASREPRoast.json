@@ -2,6 +2,7 @@
   "edge_type": "ASREPRoast",
   "description": "Request an AS-REP for an account with Kerberos pre-authentication disabled and crack it offline to recover the password.",
   "static_noise_score": 30,
+  "tool_signature_score": 61,
   "telemetry": [
     {
       "source": "windows_security",

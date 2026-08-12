@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 
 import networkx as nx
@@ -47,6 +48,13 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Edge-mapping corpus directory (default: bundled edge_mappings/).")
     p.add_argument("--environment", "-e", default=None,
                    help="Operator-declared target posture JSON (adjusts scores; see samples/env_profile.example.json).")
+    p.add_argument("--tooling", choices=["onhost", "remote", "native"], default=None,
+                   help="Operator tradecraft: 'onhost' off-the-shelf tools (loud EDR signature) vs "
+                        "'remote'/'native' quiet tradecraft (no signatured binary on the host). Moves the "
+                        "endpoint-signature component of tool-sensitive edges; see docs/TOOLING_AXIS.md.")
+    p.add_argument("--live-scores", default=None, metavar="FILE",
+                   help="JSON of measured live scores that override corpus/environment (Phase 2). Keys: "
+                        "'by_edge_type' {edge: score} and/or 'overrides' [{source,target,edge_type,score}].")
     p.add_argument("--format", "-f", choices=["json", "html", "text"], default="text",
                    help="Output format (default text).")
     p.add_argument("--defensive", action="store_true",
@@ -191,7 +199,21 @@ def main(argv: list | None = None) -> int:
                                   avoid_edge_types=set(args.avoid_edge),
                                   keep_nodes={src, dst})
 
-    stats = annotate(graph, corpus, environment=environment)
+    live_scores: dict = {}
+    if args.live_scores:
+        try:
+            with open(args.live_scores, "r", encoding="utf-8-sig") as fh:
+                spec = json.load(fh)
+        except (FileNotFoundError, json.JSONDecodeError) as exc:
+            print("live-scores error: %s" % exc, file=sys.stderr)
+            return 2
+        for et, sc in (spec.get("by_edge_type") or {}).items():
+            live_scores[et] = float(sc)
+        for o in (spec.get("overrides") or []):
+            live_scores[(o["source"], o["target"], o["edge_type"])] = float(o["score"])
+
+    stats = annotate(graph, corpus, live_scores=live_scores,
+                     environment=environment, tooling=args.tooling)
 
     # Pick the solve engine (DeadAir Rust binary vs built-in Python).
     deadair = find_deadair()

@@ -7,6 +7,16 @@ versioning.
 ## [Unreleased]
 
 ### Added
+- **Selectable tooling-profile axis** (`--tooling onhost|remote|native`,
+  `docs/TOOLING_AXIS.md`). Tool-sensitive edges carry an optional
+  `tool_agnostic_score` (quiet floor for remote/native tradecraft) and/or
+  `tool_signature_score` (loud ceiling for off-the-shelf tools on the host); the
+  flag picks the base and the environment posture still applies on top, so
+  tool-agnostic audit/identity detection is never lost (remote DCSync still rises
+  to 90 under 4662 auditing). Seeded on DCSync/Kerberoast/ASREPRoast/DumpSMSAPassword.
+- **Phase 2 `--live-scores` hook.** A JSON of measured scores (`by_edge_type`
+  and/or `overrides` by source/target/edge_type) overrides the corpus/environment -
+  wiring the existing `annotate()` live-score hook into the CLI.
 - **Azure / Entra ID foundation.** 13 `AZ*` attack-path edges (roles/privesc, app
   & service-principal credential abuse, RBAC, account takeover, resource execution)
   with Entra-native detection telemetry, plus five Entra/Azure telemetry sources

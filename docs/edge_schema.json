@@ -22,6 +22,18 @@
       "maximum": 100,
       "description": "Baseline expected detection cost, 0 (silent) to 100 (near-certain detection), assuming default auditing."
     },
+    "tool_agnostic_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Optional. The quiet floor when the technique is run with remote/native tradecraft (no signatured binary on the host) - only audit/network/identity detection. Must be <= static_noise_score. Used by --tooling remote|native."
+    },
+    "tool_signature_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Optional. The loud ceiling when off-the-shelf, signatured tooling (mimikatz/Rubeus/SharpHound) runs on the monitored host and trips EDR AV signatures. Must be >= static_noise_score. Used by --tooling onhost."
+    },
     "telemetry": {
       "type": "array",
       "description": "Detection sources this edge's abuse touches.",

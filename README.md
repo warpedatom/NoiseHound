@@ -423,23 +423,20 @@ detection facts. Tune them against your own lab detection data.
   AzureHound-native ingestion, Entra posture profiles (MDCA / ID Protection /
   Sentinel), hybrid edges (Entra Connect / PHS-PTA) so **MDI** contributes across
   the on-prem/cloud boundary, and a measured Azure calibration tier.
-- **Selectable tooling-profile axis** (`docs/TOOLING_AXIS.md`). Let the operator pick
-  `off-the-shelf-on-host` vs `remote-impacket` vs `native-obfuscated` so EDR-tier
-  scores reflect the real tooling footprint, not just the loudest case.
 - **Finish calibration - 30/57 measured, continuing.** Remaining ~27 edges
   (coercion/relay, ADCS ESC2-13), the **MDI runtime-alert tier** (posture works;
   the alert path needs a bare-metal/Ludus DC - see `docs/CALIBRATION.md`), and a
-  multi-EDR corpus (CrowdStrike/S1 beside MDE).
+  multi-EDR corpus (CrowdStrike/S1 beside MDE), plus per-edge tooling calibration to
+  broaden the `--tooling` axis.
 - **MDI as a first-class detection source.** Map MDI's posture (ISPM) assessments
   and named identity alerts to corpus edges - a coverage view like `noisehound-sigma`
   but for Defender for Identity.
-- **Phase 2 - live detection validation.** Wire the existing `annotate()`
-  `live_scores` hook into the CLI so static scores are replaced by a real target's
-  Defender/Sysmon/audit posture, reusing OffsetInspect's detection-boundary logic.
 - **ADCS ESC10a/10b/13 synthesis** (ESC1-9 synthesis ships now).
 
-Shipped since earlier drafts: the Rust engine ([DeadAir](../deadair), `--engine`
-dispatch) and live Neo4j Bolt ingestion (`--input bolt://...`).
+Shipped: the Rust engine ([DeadAir](../deadair), `--engine` dispatch), live Neo4j
+Bolt ingestion (`--input bolt://...`), the selectable **`--tooling`** axis
+(off-the-shelf-on-host vs remote/native; `docs/TOOLING_AXIS.md`), and the Phase 2
+**`--live-scores`** hook (measured scores override the corpus/environment).
 
 ## Contributing
 

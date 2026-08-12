@@ -2,6 +2,7 @@
   "edge_type": "Kerberoast",
   "description": "Request a service ticket for an account's SPN and crack it offline to recover the account's password.",
   "static_noise_score": 30,
+  "tool_signature_score": 61,
   "telemetry": [
     {
       "source": "windows_security",

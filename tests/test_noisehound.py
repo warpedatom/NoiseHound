@@ -519,6 +519,56 @@ def test_shipped_measured_profiles_are_valid():
         assert lateral in audit.adjustments
 
 
+def _one_edge(edge_type, **annotate_kwargs):
+    g = nx.DiGraph()
+    g.add_node("A", name="A")
+    g.add_node("B", name="B")
+    g.add_edge("A", "B", edge_type=edge_type, edge_types=[edge_type])
+    annotate(g, load_corpus(), **annotate_kwargs)
+    return g["A"]["B"]
+
+
+def test_tooling_axis_moves_signature_component():
+    from noisehound.annotate import _tooling_base
+    corpus = load_corpus()
+    # DCSync default assumes on-host mimikatz (85); remote/native Impacket is quieter (59).
+    assert _tooling_base(corpus.get("DCSync"), 85.0, None) == 85.0
+    assert _tooling_base(corpus.get("DCSync"), 85.0, "remote") == 59.0
+    assert _tooling_base(corpus.get("DCSync"), 85.0, "onhost") == 85.0
+    # Kerberoast default is the tool-agnostic baseline (30); on-host Rubeus is louder (61).
+    assert _tooling_base(corpus.get("Kerberoast"), 30.0, "onhost") == 61.0
+    assert _tooling_base(corpus.get("Kerberoast"), 30.0, "remote") == 30.0
+
+
+def test_tooling_does_not_lose_tool_agnostic_detection():
+    # Remote DCSync still trips 4662/MDI when auditing is on - tooling moves only the
+    # endpoint-signature component; the environment posture applies on top of the base.
+    env = EnvironmentProfile.from_dict({"name": "x", "object_auditing_4662": True})
+    quiet = _one_edge("DCSync", tooling="remote")
+    audited = _one_edge("DCSync", tooling="remote", environment=env)
+    assert quiet["effective_noise_score"] == 59.0
+    assert audited["effective_noise_score"] == 90.0
+
+
+def test_live_scores_override_by_edge_type():
+    e = _one_edge("DCSync", live_scores={"DCSync": 12.0})
+    assert e["effective_noise_score"] == 12.0
+    assert e["live_noise_score"] == 12.0
+
+
+def test_schema_tool_score_bounds():
+    # agnostic must be <= static; signature must be >= static.
+    for bad in ({"tool_agnostic_score": 60}, {"tool_signature_score": 20}):
+        entry = {"edge_type": "X", "static_noise_score": 40, "telemetry": [], **bad}
+        try:
+            validate_entry(entry)
+        except CorpusError:
+            continue
+        raise AssertionError("expected CorpusError for %s" % bad)
+    validate_entry({"edge_type": "X", "static_noise_score": 40,
+                    "tool_agnostic_score": 30, "tool_signature_score": 70, "telemetry": []})
+
+
 def test_solver_respects_time_budget():
     # A tiny time budget must not prevent a correct answer (threshold sweep is
     # always run) and must return promptly.

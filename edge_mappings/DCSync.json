@@ -2,6 +2,7 @@
   "edge_type": "DCSync",
   "description": "Replication rights abuse to pull password hashes via MS-DRSR.",
   "static_noise_score": 85,
+  "tool_agnostic_score": 59,
   "telemetry": [
     {
       "source": "windows_security",
