@@ -7,6 +7,11 @@ versioning.
 ## [Unreleased]
 
 ### Added
+- **`noisehound-mdi`** - Microsoft Defender for Identity as a first-class detection
+  source. Maps MDI's built-in runtime alerts (and, with `--include-posture`, its
+  ISPM assessments) onto corpus edges, reports coverage + identity-tier gaps, and
+  emits an `edr: MDI` environment profile. Tool-agnostic identity-tier counterpart
+  to `noisehound-sigma`. 18/70 edges covered by MDI alerts today.
 - **Selectable tooling-profile axis** (`--tooling onhost|remote|native`,
   `docs/TOOLING_AXIS.md`). Tool-sensitive edges carry an optional
   `tool_agnostic_score` (quiet floor for remote/native tradecraft) and/or

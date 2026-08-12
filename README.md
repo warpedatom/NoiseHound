@@ -334,6 +334,16 @@ noisehound-sigma -r ./sigma-rules/ -o env.sigma.json
 python -m noisehound -i export.zip -s jdoe -o "Domain Admins" -e env.sigma.json --defensive
 ```
 
+For the identity tier, **`noisehound-mdi`** does the same against Microsoft Defender
+for Identity's built-in detections - it maps MDI's runtime alerts (and, with
+`--include-posture`, its ISPM assessments) onto corpus edges and emits an
+identity-tier profile. MDI is tool-agnostic, so its coverage holds regardless of the
+attacker's tooling.
+
+```bash
+noisehound-mdi -o env.mdi.json          # + coverage report (which edges MDI watches, and the gaps)
+```
+
 Matching is deliberately conservative so it never hides a gap: a rule only
 counts if it references an event ID the edge generates *and*, when the rule is
 ATT&CK-tagged, its technique agrees - so a DS-Access (4662) DCSync rule is not
@@ -428,15 +438,14 @@ detection facts. Tune them against your own lab detection data.
   the alert path needs a bare-metal/Ludus DC - see `docs/CALIBRATION.md`), and a
   multi-EDR corpus (CrowdStrike/S1 beside MDE), plus per-edge tooling calibration to
   broaden the `--tooling` axis.
-- **MDI as a first-class detection source.** Map MDI's posture (ISPM) assessments
-  and named identity alerts to corpus edges - a coverage view like `noisehound-sigma`
-  but for Defender for Identity.
 - **ADCS ESC10a/10b/13 synthesis** (ESC1-9 synthesis ships now).
 
 Shipped: the Rust engine ([DeadAir](../deadair), `--engine` dispatch), live Neo4j
 Bolt ingestion (`--input bolt://...`), the selectable **`--tooling`** axis
-(off-the-shelf-on-host vs remote/native; `docs/TOOLING_AXIS.md`), and the Phase 2
-**`--live-scores`** hook (measured scores override the corpus/environment).
+(off-the-shelf-on-host vs remote/native; `docs/TOOLING_AXIS.md`), the Phase 2
+**`--live-scores`** hook (measured scores override the corpus/environment), and
+**`noisehound-mdi`** (Defender for Identity coverage -> identity-tier profile). The
+remaining MDI work is the lab-gated *runtime-alert calibration* (`docs/CALIBRATION.md`).
 
 ## Contributing
 

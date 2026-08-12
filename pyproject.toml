@@ -24,6 +24,7 @@ noisehound-calibrate = "noisehound.calibrate:main"
 noisehound-validate = "noisehound.validate:main"
 noisehound-inspect = "noisehound.inspect:main"
 noisehound-sigma = "noisehound.sigma:main"
+noisehound-mdi = "noisehound.mdi:main"
 noisehound-writeback = "noisehound.writeback:main"
 
 [project.optional-dependencies]

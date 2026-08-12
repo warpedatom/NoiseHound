@@ -569,6 +569,24 @@ def test_schema_tool_score_bounds():
                     "tool_agnostic_score": 30, "tool_signature_score": 70, "telemetry": []})
 
 
+def test_mdi_coverage_and_profile():
+    from noisehound.mdi import compute_coverage, to_environment_profile
+    corpus = load_corpus()
+    cov = compute_coverage(corpus)
+    # DCSync is a flagship MDI runtime alert (high floor); Kerberoast is medium.
+    assert cov["DCSync"]["kind"] == "alert" and cov["DCSync"]["score"] == 85
+    assert cov["Kerberoast"]["score"] == 70
+    # Only real corpus edges are ever returned.
+    assert set(cov) <= {e["edge_type"] for e in corpus}
+    # Posture adds coverage (gMSA/LAPS) at a lower floor, labelled distinctly.
+    cov_p = compute_coverage(corpus, include_posture=True)
+    assert len(cov_p) > len(cov)
+    assert cov_p["ReadLAPSPassword"]["kind"] == "posture"
+    # The emitted profile loads as an environment profile and carries the floors.
+    p = EnvironmentProfile.from_dict(to_environment_profile(cov))
+    assert p.adjustments["dcsync"] == 85 and p.edr == "mdi"
+
+
 def test_solver_respects_time_budget():
     # A tiny time budget must not prevent a correct answer (threshold sweep is
     # always run) and must return promptly.
