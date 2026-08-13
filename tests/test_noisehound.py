@@ -319,6 +319,73 @@ def test_adcs_manager_approval_blocks_esc1():
     assert not g.has_edge(dsid + "-1200", dsid + "-512")
 
 
+def test_adcs_esc9_10_13_synthesis():
+    dsid = "S-1-5-21-9"
+    da = dsid + "-512"
+    grp13 = dsid + "-1400"           # the OID-linked privileged group (ESC13 target)
+    oid13 = "1.3.6.1.4.1.311.21.8.777.13"
+    export = {
+        "domains.json": {"meta": {"type": "domains"}, "data": [
+            {"ObjectIdentifier": dsid, "Properties": {"name": "CORP.LOCAL", "domainsid": dsid}}]},
+        "groups.json": {"meta": {"type": "groups"}, "data": [
+            {"ObjectIdentifier": da, "Properties": {"name": "DOMAIN ADMINS@CORP.LOCAL"}, "Aces": []},
+            {"ObjectIdentifier": grp13, "Properties": {"name": "OID-LINKED-ADMINS@CORP.LOCAL"}, "Aces": []}]},
+        "users.json": {"meta": {"type": "users"}, "data": [
+            {"ObjectIdentifier": dsid + "-9001", "Properties": {"name": "U9@CORP.LOCAL"}, "Aces": []},
+            {"ObjectIdentifier": dsid + "-9002", "Properties": {"name": "U10@CORP.LOCAL"}, "Aces": []},
+            {"ObjectIdentifier": dsid + "-9003", "Properties": {"name": "U13@CORP.LOCAL"}, "Aces": []}]},
+        "certtemplates.json": {"meta": {"type": "certtemplates"}, "data": [
+            {"ObjectIdentifier": "T-ESC9",
+             "Properties": {"name": "ESC9-T@CORP.LOCAL", "domainsid": dsid,
+                            "authenticationenabled": True, "nosecurityextension": True,
+                            "requiresmanagerapproval": False, "authorizedsignatures": 0,
+                            "ekus": ["1.3.6.1.5.5.7.3.2"]},
+             "Aces": [{"PrincipalSID": dsid + "-9001", "PrincipalType": "User", "RightName": "Enroll"}]},
+            {"ObjectIdentifier": "T-ESC10",
+             "Properties": {"name": "ESC10-T@CORP.LOCAL", "domainsid": dsid,
+                            "authenticationenabled": True, "schannelauthenticationenabled": True,
+                            "requiresmanagerapproval": False, "authorizedsignatures": 0,
+                            "ekus": ["1.3.6.1.5.5.7.3.2"]},
+             "Aces": [{"PrincipalSID": dsid + "-9002", "PrincipalType": "User", "RightName": "Enroll"}]},
+            {"ObjectIdentifier": "T-ESC13",
+             "Properties": {"name": "ESC13-T@CORP.LOCAL", "domainsid": dsid,
+                            "authenticationenabled": True, "requiresmanagerapproval": False,
+                            "authorizedsignatures": 0, "ekus": ["1.3.6.1.5.5.7.3.2"],
+                            "issuancepolicies": [oid13]},
+             "Aces": [{"PrincipalSID": dsid + "-9003", "PrincipalType": "User", "RightName": "Enroll"}]}]},
+        "issuancepolicies.json": {"meta": {"type": "issuancepolicies"}, "data": [
+            {"ObjectIdentifier": "IP-13",
+             "Properties": {"name": "HIGHASSURANCE@CORP.LOCAL", "certtemplateoid": oid13},
+             "GroupLink": {"ObjectIdentifier": grp13, "ObjectType": "Group"}}]},
+        "enterprisecas.json": {"meta": {"type": "enterprisecas"}, "data": [
+            {"ObjectIdentifier": "CA-9", "Properties": {"name": "CORP-CA@CORP.LOCAL", "domainsid": dsid},
+             "Aces": [],
+             "EnabledCertTemplates": [{"ObjectIdentifier": "T-ESC9", "ObjectType": "CertTemplate"},
+                                      {"ObjectIdentifier": "T-ESC10", "ObjectType": "CertTemplate"},
+                                      {"ObjectIdentifier": "T-ESC13", "ObjectType": "CertTemplate"}]}]},
+    }
+    zpath = _bh_zip(export)
+    try:
+        g = load_graph(zpath)
+    finally:
+        os.remove(zpath)
+
+    # ESC9a (no-security-extension) and ESC10b (schannel) escalate to Domain Admins.
+    assert "ADCSESC9a" in g[dsid + "-9001"][da]["edge_types"]
+    assert "ADCSESC10b" in g[dsid + "-9002"][da]["edge_types"]
+    # ESC13 escalates to the OID-LINKED GROUP, not Domain Admins.
+    assert g.has_edge(dsid + "-9003", grp13)
+    assert "ADCSESC13" in g[dsid + "-9003"][grp13]["edge_types"]
+    assert not g.has_edge(dsid + "-9003", da)
+    # ESC10a has no template-level signal and must never be synthesised.
+    all_esc = {e for _, _, d in g.edges(data=True) for e in d.get("edge_types", [])}
+    assert "ADCSESC10a" not in all_esc
+
+    # The new ESC edges score and route like the others.
+    annotate(g, load_corpus())
+    assert g[dsid + "-9001"][da]["effective_noise_score"] > 0
+
+
 def test_solver_scales_to_a_few_thousand_nodes():
     # Layered DAG, ~2000 nodes, each layer fully connected to the next by a low
     # branching factor. Confirms the solver returns promptly at scale.

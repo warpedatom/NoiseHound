@@ -43,6 +43,7 @@ from .adcs import synthesize_adcs
 # few in number, so keeping their props does not bloat large graphs.
 _PROPS_RETAINED_TYPES = {
     "CertTemplate", "EnterpriseCA", "RootCA", "NTAuthStore", "AIACA", "Domain",
+    "IssuancePolicy",
 }
 
 def _node_label(props: dict, oid: str) -> str:
@@ -109,6 +110,15 @@ def _parse_bh_node(g: nx.DiGraph, node: dict, node_type: str) -> None:
             g.nodes[oid]["roastable_spn"] = True
         if lp.get("dontreqpreauth"):
             g.nodes[oid]["roastable_asrep"] = True
+    # ESC13: an issuance-policy OID object may be linked to a group
+    # (msDS-OIDToGroupLink); enrolling a template that asserts the OID then grants
+    # membership in that group. Retain the linked group so synthesis can use it.
+    if node_type == "IssuancePolicy":
+        gl = node.get("GroupLink") or {}
+        gsid = gl.get("ObjectIdentifier") if isinstance(gl, dict) else gl
+        if gsid:
+            _add_node(g, gsid, gl.get("ObjectType", "Group") if isinstance(gl, dict) else "Group")
+            g.nodes[oid]["oid_group_link"] = gsid
     if node_type == "EnterpriseCA":
         enabled = node.get("EnabledCertTemplates") or []
         ids = []
@@ -238,6 +248,7 @@ _BH_TYPE_BY_META = {
     "rootcas": "RootCA",
     "ntauthstores": "NTAuthStore",
     "aiacas": "AIACA",
+    "issuancepolicies": "IssuancePolicy",
 }
 
 
