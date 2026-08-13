@@ -82,7 +82,14 @@ What earns the tool academic/industry respect.
     work.
 14. **Game-theoretic / adaptive modeling.** Model the defender's response (trip
     X and they start watching Y) - quietest path under an active defender.
-15. **ADCS ESC9/10/13 synthesis** (ESC1-8 ship now).
+15. **ADCS ESC9/10/13 synthesis.** *(ESC9a / ESC10b / ESC13 shipped alongside the
+    ESC1-8 pass; the live Bolt path now runs the same synthesis, not just the zip
+    path.)* Remaining: **ESC10a** (Kerberos weak-binding) has no template-level
+    signal - it depends only on the DC `StrongCertificateBindingEnforcement`
+    registry value, which BloodHound does not collect - so it is intentionally not
+    synthesised (over-reporting it would fire on every auth template). Revisit if a
+    future SharpHound surfaces that DC posture. ESC9b (machine-account victim) is a
+    thin follow-on to ESC9a if a use case appears.
 
 ---
 
