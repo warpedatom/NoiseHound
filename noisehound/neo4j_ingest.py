@@ -1,9 +1,13 @@
 """Live BloodHound ingestion over the Neo4j Bolt protocol.
 
 Reads the graph directly from the Neo4j database BloodHound CE / SharpHound
-populate, instead of an offline zip. The database is already post-processed, so
-computed edges (including ADCS ESCx) arrive as relationship types and are scored
-like any other edge - no synthesis needed on this path.
+populate, instead of an offline zip. Computed edges the DB already carries
+(including any ADCS ESCx BloodHound post-processed) arrive as relationship types
+and are scored like any other edge. On top of that, NoiseHound runs its own ESC
+and roasting synthesis here too - mirroring the zip path - so escalation edges
+BloodHound's post-processing does not emit are still surfaced. That requires the
+node properties (template flags, roastable flags) and the CA/policy
+relationships, which are fetched below.
 
 The pure record-to-graph step is separated from the driver connection so it can
 be unit-tested without a running database; the connection is validated against a
@@ -15,14 +19,20 @@ import os
 
 import networkx as nx
 
-from .ingest import _add_edge
+from .adcs import synthesize_adcs
+from .ingest import _PROPS_RETAINED_TYPES, _add_edge, synthesize_roasting
 
 # Most specific label wins when a node carries several (BloodHound nodes are
 # usually tagged Base plus their kind).
 _LABEL_PRIORITY = [
     "User", "Computer", "Group", "Domain", "OU", "GPO", "Container",
     "CertTemplate", "EnterpriseCA", "RootCA", "NTAuthStore", "AIACA",
+    "IssuancePolicy",
 ]
+
+# Node kinds whose properties we fetch over Bolt (for ESC synthesis + roastable
+# flags). Fetching properties for every node would bloat large-graph transfers.
+_PROPS_FETCH_LABELS = sorted(_PROPS_RETAINED_TYPES | {"User"})
 _BOLT_SCHEMES = ("bolt://", "neo4j://", "bolt+s://", "neo4j+s://", "bolt+ssc://", "neo4j+ssc://")
 
 
@@ -39,10 +49,40 @@ def _primary_label(labels: list) -> str:
     return non_base[0] if non_base else (labels[0] if labels else "Base")
 
 
+def _reconstruct_adcs_facts(g: nx.DiGraph) -> None:
+    """Rebuild the CA/template facts synthesize_adcs expects from Bolt edges.
+
+    In an analysed DB these arrive as *relationships*, not the JSON fields the
+    zip parser reads: a template PublishedTo a CA, a computer HostsCAService a
+    CA, and an issuance policy OIDGroupLink to a group.
+    """
+    for oid, d in g.nodes(data=True):
+        t = d.get("type")
+        if t == "EnterpriseCA":
+            d["enabled_templates"] = [
+                s for s, _, ed in g.in_edges(oid, data=True)
+                if "PublishedTo" in (ed.get("edge_types") or [])
+                and g.nodes[s].get("type") == "CertTemplate"
+            ]
+            hosts = [
+                s for s, _, ed in g.in_edges(oid, data=True)
+                if "HostsCAService" in (ed.get("edge_types") or [])
+            ]
+            if hosts:
+                d["hosting_computer"] = hosts[0]
+        elif t == "IssuancePolicy":
+            links = [
+                tgt for _, tgt, ed in g.out_edges(oid, data=True)
+                if "OIDGroupLink" in (ed.get("edge_types") or [])
+            ]
+            if links:
+                d["oid_group_link"] = links[0]
+
+
 def build_graph_from_records(node_records: list, rel_records: list) -> nx.DiGraph:
     """Assemble a DiGraph from Neo4j node and relationship rows.
 
-    node_records: dicts with keys oid, labels (list), name.
+    node_records: dicts with keys oid, labels (list), name, and optional props.
     rel_records:  dicts with keys source, target, rtype.
     """
     g = nx.DiGraph()
@@ -51,12 +91,26 @@ def build_graph_from_records(node_records: list, rel_records: list) -> nx.DiGrap
         if not oid:
             continue
         name = n.get("name") or oid
-        g.add_node(oid, name=str(name).upper(), type=_primary_label(n.get("labels")))
+        ntype = _primary_label(n.get("labels"))
+        g.add_node(oid, name=str(name).upper(), type=ntype)
+        props = n.get("props")
+        if props:
+            lp = {str(k).lower(): v for k, v in props.items()}
+            if ntype in _PROPS_RETAINED_TYPES:
+                g.nodes[oid]["props"] = lp
+            if ntype == "User":
+                if lp.get("hasspn"):
+                    g.nodes[oid]["roastable_spn"] = True
+                if lp.get("dontreqpreauth"):
+                    g.nodes[oid]["roastable_asrep"] = True
     for r in rel_records:
         _add_edge(g, r.get("source"), r.get("target"), r.get("rtype"))
-    # The DB is already analysed; ESC edges are relationship types. Nothing to
-    # synthesise here (node properties are not fetched on this fast path).
-    g.graph["adcs_edges_synthesized"] = 0
+    # The analysed DB may already carry computed ESC edges; NoiseHound's own
+    # synthesis runs on top (idempotent - _add_edge dedups) so gaps BloodHound's
+    # post-processing leaves are still surfaced, matching the zip path.
+    _reconstruct_adcs_facts(g)
+    g.graph["adcs_edges_synthesized"] = synthesize_adcs(g)
+    g.graph["roasting_edges_synthesized"] = synthesize_roasting(g)
     return g
 
 
@@ -75,9 +129,14 @@ def load_graph_from_neo4j(
             "install it with: pip install 'noisehound[neo4j]'"
         ) from exc
 
+    # Fetch full properties only for ADCS-relevant kinds + users (roastable
+    # flags); every other node needs just oid/labels/name. Without the props,
+    # ESC and roasting synthesis silently produce nothing on the live path.
     node_query = (
         "MATCH (n) WHERE n.objectid IS NOT NULL "
-        "RETURN n.objectid AS oid, labels(n) AS labels, n.name AS name"
+        "RETURN n.objectid AS oid, labels(n) AS labels, n.name AS name, "
+        "CASE WHEN any(l IN labels(n) WHERE l IN $plabels) "
+        "THEN properties(n) ELSE null END AS props"
     )
     rel_query = (
         "MATCH (a)-[r]->(b) WHERE a.objectid IS NOT NULL AND b.objectid IS NOT NULL "
@@ -88,8 +147,9 @@ def load_graph_from_neo4j(
     try:
         with driver.session(database=database) as session:
             node_records = [
-                {"oid": rec["oid"], "labels": rec["labels"], "name": rec["name"]}
-                for rec in session.run(node_query)
+                {"oid": rec["oid"], "labels": rec["labels"], "name": rec["name"],
+                 "props": rec["props"]}
+                for rec in session.run(node_query, plabels=_PROPS_FETCH_LABELS)
             ]
             rel_records = [
                 {"source": rec["source"], "target": rec["target"], "rtype": rec["rtype"]}

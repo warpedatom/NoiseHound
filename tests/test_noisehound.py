@@ -754,11 +754,13 @@ def test_neo4j_live_path_with_mock_driver():
     class FakeSession:
         def __enter__(self): return self
         def __exit__(self, *a): return False
-        def run(self, query):
+        def run(self, query, **params):
             if "labels(n)" in query:
                 return [
-                    FakeRecord(oid="S-1", labels=["Base", "User"], name="jdoe@CONTOSO.LOCAL"),
-                    FakeRecord(oid="S-512", labels=["Base", "Group"], name="Domain Admins@CONTOSO.LOCAL"),
+                    FakeRecord(oid="S-1", labels=["Base", "User"],
+                               name="jdoe@CONTOSO.LOCAL", props=None),
+                    FakeRecord(oid="S-512", labels=["Base", "Group"],
+                               name="Domain Admins@CONTOSO.LOCAL", props=None),
                 ]
             return [FakeRecord(source="S-1", target="S-512", rtype="GenericAll")]
 
@@ -775,6 +777,38 @@ def test_neo4j_live_path_with_mock_driver():
     assert g.number_of_nodes() == 2
     assert g.nodes["S-1"]["type"] == "User"
     assert g["S-1"]["S-512"]["edge_type"] == "GenericAll"
+
+
+def test_bolt_path_reconstructs_and_synthesizes_esc():
+    # The analysed DB stores ESC facts as relationships (template PublishedTo CA)
+    # and node properties, not JSON fields. build_graph_from_records must fetch
+    # props, rebuild the CA/template facts, and run synthesis - matching the zip
+    # path - so live-Bolt ingestion is not blind to escalation edges.
+    from noisehound.neo4j_ingest import build_graph_from_records
+    dsid = "S-1-5-21-7"
+    node_records = [
+        {"oid": dsid, "labels": ["Base", "Domain"], "name": "CORP.LOCAL",
+         "props": {"domainsid": dsid}},
+        {"oid": dsid + "-512", "labels": ["Base", "Group"],
+         "name": "DOMAIN ADMINS@CORP.LOCAL", "props": None},
+        {"oid": dsid + "-1105", "labels": ["Base", "User"],
+         "name": "JDOE@CORP.LOCAL", "props": None},
+        {"oid": "T1", "labels": ["Base", "CertTemplate"], "name": "ESC10-T@CORP.LOCAL",
+         "props": {"domainsid": dsid, "authenticationenabled": True,
+                   "schannelauthenticationenabled": True, "requiresmanagerapproval": False,
+                   "authorizedsignatures": 0, "ekus": ["1.3.6.1.5.5.7.3.2"]}},
+        {"oid": "CA1", "labels": ["Base", "EnterpriseCA"],
+         "name": "CORP-CA@CORP.LOCAL", "props": {"domainsid": dsid}},
+    ]
+    rel_records = [
+        {"source": dsid + "-1105", "target": "T1", "rtype": "Enroll"},  # enroller
+        {"source": "T1", "target": "CA1", "rtype": "PublishedTo"},      # published on the CA
+    ]
+    g = build_graph_from_records(node_records, rel_records)
+    # enabled_templates rebuilt from PublishedTo; ESC10b synthesized to Domain Admins.
+    assert g.nodes["CA1"]["enabled_templates"] == ["T1"]
+    assert "ADCSESC10b" in g[dsid + "-1105"][dsid + "-512"]["edge_types"]
+    assert g.graph["adcs_edges_synthesized"] >= 1
 
 
 def test_writeback_builds_rows_and_runs_with_mock_driver():
