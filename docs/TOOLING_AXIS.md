@@ -65,9 +65,13 @@ off-the-shelf tooling does). `--tooling` picks the base; today, for example:
 
 **Crucially, tooling only moves the *endpoint-signature* component.** The environment
 posture is applied on top of the tooling base, so tool-agnostic detection is never
-lost: remote DCSync still rises to 90 under `object_auditing_4662` (MDI / 4662 catch
-the replication regardless of the tool). That is the whole point - remote/native
-tradecraft dodges the EDR AV signature, not the AD/identity audit trail.
+lost: remote DCSync still rises to 90 under a **posture-declared**
+`object_auditing_4662` profile (MDI / 4662 catch the replication regardless of the
+tool). That is the whole point - remote/native tradecraft dodges the EDR AV
+signature, not the AD/identity audit trail. A *measured* profile can still score
+lower than the floor when it hard-codes a lab-observed value (e.g. the shipped
+`profiles/vulnad-hyperv-audit.json` measures DCSync at 59) - measured always
+overrides the theoretical floor, by design.
 
 Coverage today is the well-evidenced signatured edges (DCSync, Kerberoast, ASREPRoast,
 DumpSMSAPassword); more edges gain `tool_*_score` values as per-edge tooling
