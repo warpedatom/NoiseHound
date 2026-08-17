@@ -1,0 +1,25 @@
+{
+  "edge_type": "AZAppAdmin",
+  "description": "Application Administrator - can add credentials to ANY application/service principal in the tenant.",
+  "static_noise_score": 58,
+  "telemetry": [
+    {
+      "source": "entra_audit",
+      "event_id": null,
+      "detail": "Entra ID audit log: 'Add service principal credentials / Update application - Certificates and secrets management' (directory logging is default-on).",
+      "reliability": "high",
+      "default_enabled": true
+    },
+    {
+      "source": "mdca",
+      "event_id": null,
+      "product_class": "MDCA",
+      "detail": "Unusual addition of credentials to an OAuth app (built-in AAD/MDCA detection).",
+      "reliability": "high"
+    }
+  ],
+  "mitre_technique": "T1098.001",
+  "prerequisite_privilege": "Application Administrator or Cloud Application Administrator role",
+  "abuse_primitive": "Add a client secret/certificate to a privileged app registration, then authenticate as that app.",
+  "notes": "Credential-add is audited and has a high-fidelity MDCA detection, but is quiet in tenants without MDCA/Sentinel. BloodHound emits this edge as AZAppAdmin (was incorrectly AZApplicationAdmin in the corpus)."
+}

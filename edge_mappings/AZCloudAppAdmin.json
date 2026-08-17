@@ -1,6 +1,6 @@
 {
-  "edge_type": "AZApplicationAdmin",
-  "description": "Application Administrator - can add credentials to ANY application/service principal in the tenant.",
+  "edge_type": "AZCloudAppAdmin",
+  "description": "Cloud Application Administrator - can add credentials to applications/service principals (like Application Administrator, minus on-prem application-proxy management).",
   "static_noise_score": 58,
   "telemetry": [
     {
@@ -19,7 +19,7 @@
     }
   ],
   "mitre_technique": "T1098.001",
-  "prerequisite_privilege": "Application Administrator or Cloud Application Administrator role",
+  "prerequisite_privilege": "Cloud Application Administrator role",
   "abuse_primitive": "Add a client secret/certificate to a privileged app registration, then authenticate as that app.",
-  "notes": "Credential-add is audited and has a high-fidelity MDCA detection, but is quiet in tenants without MDCA/Sentinel."
+  "notes": "BloodHound emits AZCloudAppAdmin distinctly from AZAppAdmin; both feed the AZAddSecret post-processing. Same telemetry footprint as AZAppAdmin."
 }

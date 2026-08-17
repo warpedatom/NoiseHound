@@ -44,10 +44,10 @@ future Entra posture profile, below).
 Entra sources use activity **names** (in `detail`), not numeric event IDs, so
 `event_id` is `null` for them.
 
-## The starter edge set (13)
+## The starter edge set (14)
 
 - **Roles / privilege escalation:** `AZGlobalAdmin`, `AZPrivilegedRoleAdmin`,
-  `AZApplicationAdmin`, `AZUserAccessAdministrator`, `AZHasRole`.
+  `AZAppAdmin`, `AZCloudAppAdmin`, `AZUserAccessAdministrator`, `AZHasRole`.
 - **App / service-principal credential abuse:** `AZAddSecret`, `AZMGAddSecret`
   (MS Graph app-role), `AZAddOwner`, `AZOwns`.
 - **Account / group takeover:** `AZResetPassword`, `AZAddMembers`.
