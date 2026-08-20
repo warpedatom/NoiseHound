@@ -14,6 +14,13 @@
       "event_id": null,
       "detail": "Azure Activity log: Resource action that invokes the identity (run-command, job start) is logged. (default-on).",
       "reliability": "medium"
+    },
+    {
+      "source": "defender_for_cloud",
+      "event_id": null,
+      "detail": "Microsoft Defender for Cloud can alert on anomalous managed-identity resource actions (Defender for Resource Manager/Servers); requires the paid plan + onboarded resource.",
+      "reliability": "medium",
+      "default_enabled": false
     }
   ],
   "mitre_technique": "T1078.004",

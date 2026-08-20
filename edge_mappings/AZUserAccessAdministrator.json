@@ -15,6 +15,13 @@
       "product_class": "MDCA",
       "detail": "Privileged Azure RBAC role assignment can be flagged by anomaly policies.",
       "reliability": "medium"
+    },
+    {
+      "source": "defender_for_cloud",
+      "event_id": null,
+      "detail": "Microsoft Defender for Cloud (Defender for Resource Manager) flags suspicious/anomalous privileged RBAC role assignments; requires the paid plan.",
+      "reliability": "medium",
+      "default_enabled": false
     }
   ],
   "mitre_technique": "T1098.003",

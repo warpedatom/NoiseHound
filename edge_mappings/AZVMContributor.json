@@ -15,6 +15,13 @@
       "product_class": "MDE",
       "detail": "If the VM is onboarded to Defender for Endpoint, the executed payload is caught on-host.",
       "reliability": "high"
+    },
+    {
+      "source": "defender_for_cloud",
+      "event_id": null,
+      "detail": "Microsoft Defender for Cloud (Defender for Servers/Resource Manager) can alert on anomalous Run Command / VM compute abuse; requires the paid plan + an onboarded resource.",
+      "reliability": "medium",
+      "default_enabled": false
     }
   ],
   "mitre_technique": "T1651",

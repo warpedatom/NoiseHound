@@ -28,6 +28,8 @@ VALID_SOURCES = {
     "entra_id_protection",  # Entra ID Protection risk detections
     "azure_activity",       # Azure Activity / resource-plane logs (ARM, Key Vault, VM)
     "mdca",                 # Microsoft Defender for Cloud Apps (activity/anomaly policies)
+    "defender_for_cloud",   # Microsoft Defender for Cloud (CSPM + workload protection) -
+                            # resource-plane threat alerts on ARM operations (paid plans).
 }
 
 VALID_RELIABILITY = {

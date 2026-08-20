@@ -40,6 +40,7 @@ future Entra posture profile, below).
 | `entra_id_protection` | Entra ID Protection risk detections |
 | `azure_activity` | Azure Activity / resource-plane (ARM role assignments, VM run-command, Key Vault) |
 | `mdca` | Microsoft Defender for Cloud Apps activity/anomaly policies |
+| `defender_for_cloud` | Microsoft Defender for Cloud (CSPM + workload protection) - resource-plane **threat alerts** on ARM operations. The alert-tier counterpart to `azure_activity`, the way `entra_id_protection` is to `entra_audit`. Needs the paid Defender plans + an onboarded resource; sits on the resource-plane edges (`AZVMContributor`/`AZUserAccessAdministrator`/`AZRunsAs`). |
 
 Entra sources use activity **names** (in `detail`), not numeric event IDs, so
 `event_id` is `null` for them. The directory-plane abuse edges additionally carry
