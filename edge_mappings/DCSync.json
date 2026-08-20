@@ -27,6 +27,14 @@
       "product_class": "MDI",
       "detail": "Many EDRs and MDI flag non-DC hosts issuing DRSGetNCChanges calls - high fidelity.",
       "reliability": "high"
+    },
+    {
+      "source": "wdac",
+      "event_id": 3077,
+      "product_class": "WDAC",
+      "detail": "WDAC / App Control blocks the unsigned mimikatz (on-host) binary on-host (enforce 3077; audit-only logs 3076). Evaded by native LOLBin or remote (Impacket) execution - see the tooling axis.",
+      "reliability": "high",
+      "default_enabled": false
     }
   ],
   "mitre_technique": "T1003.006",

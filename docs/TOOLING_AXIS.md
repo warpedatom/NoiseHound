@@ -76,3 +76,22 @@ overrides the theoretical floor, by design.
 Coverage today is the well-evidenced signatured edges (DCSync, Kerberoast, ASREPRoast,
 DumpSMSAPassword); more edges gain `tool_*_score` values as per-edge tooling
 calibration lands.
+
+## WDAC / App Control as a tool-signature source
+
+The tooling axis has a matching *detection* source: **Windows Defender Application
+Control (WDAC / App Control)**. When an off-the-shelf offensive binary runs on-host,
+WDAC logs it in the **CodeIntegrity** operational log - **3076** in audit mode (would
+have blocked) and **3077** in enforce mode (blocked). Like the EDR signature, WDAC is
+blind to native LOLBin tradecraft and to remote execution (Impacket from another
+host), so it is precisely a `--tooling onhost` detector: it catches the loud case and
+misses the quiet one.
+
+Modelled today on the on-host-tool edges (`Kerberoast`/`ASREPRoast` → Rubeus,
+`DumpSMSAPassword`/`DCSync` → mimikatz, `AddKeyCredentialLink` → Whisker, `ADCSESC1` →
+Certify/Certipy) as a `wdac` telemetry entry with `default_enabled: false` - WDAC is
+opt-in, so `--defensive` surfaces "enforce WDAC / App Control" as a closable gap on
+exactly those edges and not on tool-agnostic ones. **Measuring it in the lab:** enable
+WDAC in audit mode (a base policy in *audit* so nothing is actually blocked) on the DC
+/ member server, run the tools, and count CodeIntegrity 3076 - the same trigger-and-
+count loop as the other tiers, feedable through the calibration harness.

@@ -7,6 +7,13 @@ versioning.
 ## [Unreleased]
 
 ### Added
+- **WDAC / App Control as a tool-signature detection source.** New `wdac` telemetry
+  source (CodeIntegrity 3076 audit / 3077 block) on the on-host-tool edges
+  (Kerberoast, ASREPRoast, DumpSMSAPassword, DCSync, AddKeyCredentialLink, ADCSESC1),
+  the detection counterpart to the tooling axis: it fires on off-the-shelf binaries
+  and is blind to native/remote tradecraft. `default_enabled: false` (WDAC is opt-in),
+  so `--defensive` surfaces "enforce WDAC / App Control" as a closable gap on exactly
+  those edges. Lab-measurable via CodeIntegrity 3076 in audit mode (`docs/TOOLING_AXIS.md`).
 - **`noisehound-entra` - measured Azure tier.** The cloud analogue of the on-prem
   calibration harness: turns a Microsoft Graph `directoryAudits` export plus a run
   manifest into calibrate-ready `observations`, matching each exercised `AZ*` edge

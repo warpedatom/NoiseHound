@@ -29,6 +29,14 @@
       "product_class": "generic",
       "detail": "CA request/issue events are logged on the CA by default; the SAN-vs-requester mismatch is the tell. Certify/Certipy usage patterns are modelled by newer ITDR.",
       "reliability": "medium"
+    },
+    {
+      "source": "wdac",
+      "event_id": 3077,
+      "product_class": "WDAC",
+      "detail": "WDAC / App Control blocks the unsigned Certify / Certipy binary on-host (enforce 3077; audit-only logs 3076). Evaded by native LOLBin or remote (Impacket) execution - see the tooling axis.",
+      "reliability": "high",
+      "default_enabled": false
     }
   ],
   "mitre_technique": "T1649",

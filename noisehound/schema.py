@@ -16,6 +16,10 @@ VALID_SOURCES = {
     "network",
     "edr_heuristic",
     "etw",
+    "wdac",             # Windows Defender Application Control / WDAC (CodeIntegrity
+                        # operational log 3076 audit / 3077 block) - a tool-signature
+                        # source: fires on off-the-shelf tool binaries, blind to
+                        # native LOLBin / remote tradecraft (see docs/TOOLING_AXIS.md).
     # Azure / Entra ID sources. Unlike on-prem SACLs, Entra audit + sign-in logging
     # is default-ON, so cloud control-plane actions are almost always *logged*; the
     # noise score turns on whether they are *alerted* (MDCA / ID Protection / SIEM).

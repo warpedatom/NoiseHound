@@ -547,6 +547,28 @@ def test_entra_profile_calibrates_and_roundtrips():
     assert g["P"]["APP"]["effective_noise_score"] == profile["adjustments"]["AZAddSecret"]
 
 
+def test_wdac_is_a_tool_signature_source_on_tool_edges():
+    # WDAC / App Control is a tool-signature telemetry source: it fires on
+    # off-the-shelf tool binaries and is blind to native/remote tradecraft. It
+    # must be an accepted source, sit on the tool-abused edges, drive a defensive
+    # recommendation, and NOT be miscredited to edges with no tool binary.
+    from noisehound.schema import VALID_SOURCES
+    from noisehound.defend import controls_for_edge
+    assert "wdac" in VALID_SOURCES
+    corpus = {e["edge_type"]: e for e in load_corpus()}
+    for et in ("Kerberoast", "ASREPRoast", "DumpSMSAPassword", "DCSync",
+               "AddKeyCredentialLink", "ADCSESC1"):
+        tele = corpus[et]["telemetry"]
+        wd = [t for t in tele if t.get("source") == "wdac"]
+        assert wd, "%s should carry a wdac telemetry entry" % et
+        assert wd[0].get("default_enabled") is False  # WDAC is opt-in, so it's a closable gap
+        ctrls = controls_for_edge(corpus[et])
+        assert any("WDAC" in c or "App Control" in c for c in ctrls), \
+            "%s defensive controls should recommend WDAC" % et
+    # A non-tool edge must not gain a WDAC recommendation.
+    assert not any("WDAC" in c for c in controls_for_edge(corpus["AdminTo"]))
+
+
 def test_corpus_validator_passes_clean():
     from noisehound.validate import validate_corpus
     errors, warnings, checked = validate_corpus(

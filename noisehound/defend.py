@@ -63,6 +63,9 @@ def controls_for_edge(entry: dict | None) -> list:
                 add("Deploy Sysmon with ProcessAccess (Event 10) rules for LSASS")
             else:
                 add("Deploy Sysmon (Event %s)" % eid)
+        elif src == "wdac" and not default_on:
+            add("Enforce WDAC / App Control (or audit mode) to catch off-the-shelf "
+                "tooling (CodeIntegrity 3076/3077) - blind to native/remote tradecraft")
     if not controls:
         add("Already covered by default-on telemetry - no gap to close.")
     return controls
