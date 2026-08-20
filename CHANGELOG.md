@@ -7,6 +7,20 @@ versioning.
 ## [Unreleased]
 
 ### Added
+- **`noisehound-elastic` — score against a live Elastic Security detection
+  inventory.** Reads enabled detection rules from a running Kibana detection
+  engine over the read-only `_find` API (or an offline `--rules-json` export),
+  maps each rule's ATT&CK technique + any Windows event codes in its query, and
+  emits the same `--environment` coverage profile and gap report as
+  `noisehound-sigma`. Adds a conservative technique-only match tier (flagged
+  `[technique]`, penalised) for behavioural KQL/EQL rules that name no event code;
+  disabled rules are ignored. Stdlib-only (no new dependency).
+- **`samples/sample_lab_ce.zip` — a BHCE-ingestable bundled sample.** A lightly
+  sanitised real SharpHound CE collection of the public GOAD `sevenkingdoms.local`
+  lab (323 objects, 25 edge families incl. full AD CS), so the operator
+  walkthrough is a pure upload → writeback → view flow with no Cypher seed. Built
+  reproducibly by `samples/build_sample_lab_ce.py`. Doubles as a BHCE-ingestion
+  regression fixture.
 - **`AZAppAdmin` corpus rename + `AZCloudAppAdmin`.** BloodHound's graph emits
   `AZAppAdmin`, not `AZApplicationAdmin` - the old key never matched a real
   collected graph, so the Application Administrator escalation edge was
@@ -63,6 +77,15 @@ versioning.
   synthetic `samples/sample_azure.json` and `docs/AZURE.md` ship with it. Corpus
   is now 70 edges (57 on-prem + 13 Azure). Azure edges are expert estimates
   pending a measured Azure calibration tier.
+
+### Fixed
+- **Ingest now reads the modern `LocalGroups` collection.** SharpHound v2.13 /
+  BloodHound CE report local-group membership under a single `LocalGroups` list
+  keyed by group RID (544→AdminTo, 555→CanRDP, 562→ExecuteDCOM, 580→CanPSRemote);
+  the parser previously read only the deprecated per-collection `LocalAdmins` /
+  `RemoteDesktopUsers` / `DcomUsers` / `PSRemoteUsers` arrays, silently dropping
+  those computer-access edges on every current collection. Both formats are now
+  read.
 
 ## [1.0.0] - 2026-08-10
 

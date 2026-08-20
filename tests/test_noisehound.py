@@ -1004,6 +1004,68 @@ def test_sigma_profile_roundtrips_into_scoring():
     assert g["P"]["DOM"]["effective_noise_score"] == 85
 
 
+def test_elastic_query_event_id_parsing():
+    from noisehound.elastic import _event_ids_from_query
+    assert _event_ids_from_query("event.code:4662 and foo:bar") == {4662}
+    assert _event_ids_from_query('winlog.event_id: "4624"') == {4624}
+    # list form, both delimiters
+    assert _event_ids_from_query("event.code:(4728 or 4729)") == {4728, 4729}
+    assert _event_ids_from_query("process.name:mimikatz.exe") == set()
+
+
+def test_elastic_normalise_skips_disabled_and_reads_attack():
+    from noisehound.elastic import normalise_rules
+    raw = json.load(open(os.path.join(ROOT, "samples", "elastic_rules.example.json"),
+                        encoding="utf-8"))
+    rules = normalise_rules(raw)
+    # 5 rules in the fixture, one disabled (ESC1) -> 4 enabled.
+    assert len(rules) == 4
+    titles = {r.title for r in rules}
+    assert not any("DISABLED" in t for t in titles)
+    dcsync = next(r for r in rules if r.title.startswith("Active Directory Replication"))
+    assert dcsync.event_ids == {4662}
+    # Both the declared parent technique and its subtechnique are kept, matching
+    # how the Sigma tier treats ATT&CK tags; _tech_match handles parent/sub.
+    assert dcsync.techniques == {"T1003", "T1003.006"}
+
+
+def test_elastic_technique_only_tier_is_opt_in():
+    from noisehound.elastic import normalise_rules
+    from noisehound.sigma import compute_coverage
+    raw = json.load(open(os.path.join(ROOT, "samples", "elastic_rules.example.json"),
+                        encoding="utf-8"))
+    rules = normalise_rules(raw)
+    # The AS-REP rule is an EQL query with no event.code, only technique T1558.004.
+    off = compute_coverage(load_corpus(), rules)                          # Sigma default
+    on = compute_coverage(load_corpus(), rules, allow_technique_only=True)  # SIEM tier
+    assert "ASREPRoast" not in off, "technique-only match must not count by default"
+    assert on["ASREPRoast"]["match"] == "technique"
+    assert on["ASREPRoast"]["score"] == 65  # high floor 85 - 20 technique-only penalty
+    # Event-grounded matches are identical either way.
+    assert on["DCSync"]["match"] == off["DCSync"]["match"] == "event_id+technique"
+
+
+def test_elastic_profile_roundtrips_into_scoring(capsys):
+    from noisehound.elastic import main
+    from noisehound.environment import EnvironmentProfile
+    out = os.path.join(ROOT, "samples", "_tmp_elastic_env.json")
+    try:
+        rc = main(["--rules-json", os.path.join(ROOT, "samples", "elastic_rules.example.json"),
+                   "--out", out, "--quiet"])
+        assert rc == 0
+        profile = json.load(open(out, encoding="utf-8"))
+    finally:
+        if os.path.exists(out):
+            os.remove(out)
+    assert profile["adjustments"]["DCSync"] == 85
+    assert profile["adjustments"]["Kerberoast"] == 70
+    assert profile["adjustments"]["ASREPRoast"] == 65
+    prof = EnvironmentProfile.from_dict(profile)
+    g = _annotated([("P", "DOM", "Kerberoast")])
+    annotate(g, load_corpus(), environment=prof)
+    assert g["P"]["DOM"]["effective_noise_score"] == 70
+
+
 def test_path_detection_probability_model():
     from noisehound.probability import path_detection_probability, score_to_probability
     cfg = ScoringConfig(correlation=0.5)

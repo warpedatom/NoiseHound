@@ -361,6 +361,26 @@ lists both what your rules cover and, more usefully, the attack edges no rule
 covers. Combined with `--defensive`, this answers "given the detections I have
 deployed, where is my quietest attack path still invisible?"
 
+### Live Elastic Security inventory
+
+`noisehound-elastic` answers the same question against detections that are
+**actually enabled right now** in a running Elastic Security stack, rather than
+rules on disk. It reads the detection engine over Kibana's read-only `_find` API
+(or an offline export), maps each enabled rule's ATT&CK technique and any Windows
+event codes in its query, and emits the same `--environment` coverage profile.
+
+```bash
+export KIBANA_URL=https://kibana:5601 KIBANA_API_KEY=<base64 ApiKey>
+noisehound-elastic -o env.elastic.json                                   # live, read-only
+noisehound-elastic --rules-json rules_find.json -o env.elastic.json      # offline export
+python -m noisehound -i export.zip -s jdoe -o "Domain Admins" -e env.elastic.json --defensive
+```
+
+It reuses the Sigma matcher and adds a technique-only tier (flagged `[technique]`,
+scored lower) for the behavioural KQL/EQL rules that never name an event code.
+Disabled rules are ignored. Same normalise-then-score pattern for Splunk /
+Sentinel / MDI next.
+
 ---
 
 ## AD CS ESC1-8

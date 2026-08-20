@@ -114,10 +114,15 @@ Meet users where they already are.
    so "quietest path" is visible inside the BloodHound UI, and hook into
    SpecterOps OpenGraph for custom edges.
 7. **Score against deployed detections.** *(Tier 2 - Sigma rule coverage -
-   shipped in v0.5.0, `noisehound-sigma`.)* Remaining tiers: live SIEM/EDR API
-   ingestion (Splunk/Sentinel/Elastic/MDI) to compute coverage from a running
-   detection inventory. "Quiet *here* because the DCSync analytic is not
-   enabled." Nobody is doing detection-aware pathing against a live inventory.
+   shipped in v0.5.0, `noisehound-sigma`. Tier 3 - live Elastic Security
+   inventory - shipped, `noisehound-elastic`: reads the enabled detection rules
+   from a running Kibana detection engine over the read-only `_find` API (or an
+   offline export), normalises each rule's ATT&CK + event-code mapping, and reuses
+   the Sigma matcher with a technique-only tier for behavioural queries. Emits the
+   same `--environment` coverage profile + gap report. Live-path validation
+   against the lab Elastic stack is the remaining owner step.)* Remaining tiers:
+   Splunk / Sentinel / MDI API ingestion on the same normalise-then-`compute_coverage`
+   pattern. Nobody is doing detection-aware pathing against a live inventory.
 
 ## Phase 3 - Rigor and credibility (gated: needs the lab)
 
