@@ -20,6 +20,8 @@ from a 4-hop session-hijack chain to a 1-hop ADCS ESC1 (see `docs/VALIDATION.md`
 | `vulnad-hyperv-audit.json`   | Audit only | 30 | Full DC audit policy + Sysmon, no EDR. Tool-agnostic technique signals (4662/4769/5136/4886...). |
 | `vulnad-hyperv-edr.json`     | Alert / EDR | 30 | Above + a Microsoft Defender for Endpoint severity pass on edges that raised named alerts. |
 | `vulnad-hyperv-elastic.json` | Elastic SIEM | 10 | Open/free Elasticsearch + Kibana with prebuilt rules. Caught SQLAdmin (64) and DCSync (85) at HIGH - free rules matching/beating the commercial EDR. |
+| `vulnad-hyperv-mdi.json`     | MDI runtime | 3 | Microsoft Defender for Identity **runtime alerts**, new v3 (ETW/MDE) sensor. Kerberoast/AS-REP High, RBCD Medium - fired by remote Impacket/bloodyAD. `docs/MDI_RUNTIME_TIER.md`. |
+| `vulnad-hyperv-wdac.json`    | WDAC / App Control | 3 | WDAC audit-mode (CodeIntegrity 3076) tool-signature tier - on-host Rubeus→Kerberoast/AS-REP, Whisker→AddKeyCredentialLink. Blind to remote/native tradecraft. `docs/TOOLING_AXIS.md`. |
 
 ## How they were measured
 
@@ -42,7 +44,8 @@ scored by `noisehound-calibrate`. Full methodology: `docs/CALIBRATION.md`,
   native tradecraft (Impacket from Linux, native cmdlets) is far quieter at the
   endpoint for the same edge - the whole point of the audit/identity tier. See
   `docs/TOOLING_AXIS.md`.
-- **MDI alert tier is not included here.** MDI *posture* (ISPM) corroborated these
-  edges from the directory side, but the runtime alert path was dark on Hyper-V
-  (capture-path limitation, not learning-period). A bare-metal/Ludus redo is on the
-  roadmap. The EDR profile is the runtime alert-tier deliverable for now.
+- **MDI + WDAC tiers now measured** (2026-08-20). The earlier "MDI runtime dark on
+  Hyper-V" finding was a **classic-sensor limitation**: on the new v3 (ETW/MDE) sensor,
+  runtime alerts fire (`vulnad-hyperv-mdi.json`; `docs/MDI_RUNTIME_TIER.md`). WDAC
+  audit-mode was measured the same session (`vulnad-hyperv-wdac.json`) - the
+  tool-signature detector realized. Both are small samples (1-2 runs/edge) - a floor.

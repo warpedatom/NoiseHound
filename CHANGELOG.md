@@ -7,6 +7,11 @@ versioning.
 ## [Unreleased]
 
 ### Added
+- **Measured WDAC tier** (`profiles/vulnad-hyperv-wdac.json`). WDAC deployed in audit
+  mode on the Hyper-V DC; on-host Rubeus/Whisker each raised a CodeIntegrity 3076
+  would-block event, measuring Kerberoast/ASREPRoast (Rubeus) and AddKeyCredentialLink
+  (Whisker) at the tool-signature tier - and confirming WDAC saw nothing from the
+  parallel remote (Impacket/bloodyAD) campaign. `docs/TOOLING_AXIS.md`.
 - **WDAC / App Control as a tool-signature detection source.** New `wdac` telemetry
   source (CodeIntegrity 3076 audit / 3077 block) on the on-host-tool edges
   (Kerberoast, ASREPRoast, DumpSMSAPassword, DCSync, AddKeyCredentialLink, ADCSESC1),

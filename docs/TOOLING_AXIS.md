@@ -87,11 +87,24 @@ blind to native LOLBin tradecraft and to remote execution (Impacket from another
 host), so it is precisely a `--tooling onhost` detector: it catches the loud case and
 misses the quiet one.
 
-Modelled today on the on-host-tool edges (`Kerberoast`/`ASREPRoast` → Rubeus,
+Modelled on the on-host-tool edges (`Kerberoast`/`ASREPRoast` → Rubeus,
 `DumpSMSAPassword`/`DCSync` → mimikatz, `AddKeyCredentialLink` → Whisker, `ADCSESC1` →
 Certify/Certipy) as a `wdac` telemetry entry with `default_enabled: false` - WDAC is
 opt-in, so `--defensive` surfaces "enforce WDAC / App Control" as a closable gap on
-exactly those edges and not on tool-agnostic ones. **Measuring it in the lab:** enable
-WDAC in audit mode (a base policy in *audit* so nothing is actually blocked) on the DC
-/ member server, run the tools, and count CodeIntegrity 3076 - the same trigger-and-
-count loop as the other tiers, feedable through the calibration harness.
+exactly those edges and not on tool-agnostic ones.
+
+**Measured (2026-08-20) - `profiles/vulnad-hyperv-wdac.json`.** On the Hyper-V DC we
+deployed WDAC in **audit mode** (DefaultWindows_Audit template, enforcement status 1)
+and ran the tools on-host from an AV-excluded folder. Each unsigned binary raised a
+**CodeIntegrity 3076** "would-block" audit event:
+
+| Tool | 3076 | Edges realized | Calibrated (WDAC tier) |
+|------|-----:|----------------|-----------------------:|
+| `Rubeus.exe`  | 1 | Kerberoast, ASREPRoast | 44 |
+| `Whisker.exe` | 1 | AddKeyCredentialLink   | 48 |
+
+Confirms the axis directly: WDAC catches the **on-host binary**, so those edges are
+loud with off-the-shelf tooling - and it saw **nothing** from the parallel remote
+campaign (Impacket/bloodyAD from Kali) against the same DC. `mimikatz.exe`
+(DCSync/DumpSMSAPassword) and Certipy (ADCS ESC1) weren't run on-host here, so those
+`wdac` edges remain modelled-not-measured. Raw: `_lab_prep/lab_detections_wdac.json`.
