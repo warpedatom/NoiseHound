@@ -8,7 +8,13 @@
       "event_id": null,
       "detail": "Entra ID audit log: 'Add member to role / Add role assignment (as Privileged Role Administrator)' (directory logging is default-on).",
       "reliability": "high",
-      "default_enabled": true
+      "default_enabled": true,
+      "activity": [
+        "Add member to role",
+        "Add eligible member to role",
+        "Add role assignment"
+      ],
+      "category": "RoleManagement"
     },
     {
       "source": "entra_id_protection",

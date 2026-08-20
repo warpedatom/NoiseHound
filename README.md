@@ -344,6 +344,15 @@ attacker's tooling.
 noisehound-mdi -o env.mdi.json          # + coverage report (which edges MDI watches, and the gaps)
 ```
 
+For the **Azure/Entra** edges, **`noisehound-entra`** measures the cloud tier the
+way the on-prem tiers were measured: trigger the `AZ*` abuses in a lab tenant,
+export the Entra `directoryAudits` trail, and it counts what actually logged into a
+calibrated profile (`docs/AZURE_CALIBRATION.md`).
+
+```bash
+noisehound-entra -a directoryAudits.json -m entra_runs.json --profile-out profiles/lab-tenant-azure.json
+```
+
 Matching is deliberately conservative so it never hides a gap: a rule only
 counts if it references an event ID the edge generates *and*, when the rule is
 ATT&CK-tagged, its technique agrees - so a DS-Access (4662) DCSync rule is not

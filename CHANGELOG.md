@@ -7,6 +7,16 @@ versioning.
 ## [Unreleased]
 
 ### Added
+- **`noisehound-entra` - measured Azure tier.** The cloud analogue of the on-prem
+  calibration harness: turns a Microsoft Graph `directoryAudits` export plus a run
+  manifest into calibrate-ready `observations`, matching each exercised `AZ*` edge
+  by the Entra activity signature now on the corpus (`entra_audit` telemetry gained
+  `activity`/`category`), and calibrates a measured `lab-tenant-azure` profile with
+  `--profile-out`. Holding-only (`AZHasRole`/`AZOwns`) and resource-plane
+  (`AZUserAccessAdministrator`/`AZVMContributor`/`AZRunsAs`) edges are reported as
+  not-audit-measurable rather than scored from nothing. Recipe in
+  `docs/AZURE_CALIBRATION.md`; fixtures `samples/entra_audit.example.json` +
+  `samples/entra_runs.example.json`. Stdlib-only.
 - **`noisehound-mdi`** - Microsoft Defender for Identity as a first-class detection
   source. Maps MDI's built-in runtime alerts (and, with `--include-posture`, its
   ISPM assessments) onto corpus edges, reports coverage + identity-tier gaps, and

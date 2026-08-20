@@ -487,6 +487,66 @@ def test_calibration_end_to_end_and_roundtrip():
     assert g["P"]["DOM"]["effective_noise_score"] == profile_dict["adjustments"]["DCSync"]
 
 
+def test_azure_edges_carry_entra_activity_signatures():
+    # The measured Azure tier matches audit records by the activity signatures now
+    # on the corpus. Abuse edges that write to the directory must carry them;
+    # holding-only / resource-plane edges intentionally do not.
+    from noisehound.entra import edge_signatures
+    sigs = edge_signatures(load_corpus())
+    assert "add member to role" in sigs["AZGlobalAdmin"]["activity"]  # stored lowercased
+    assert "AZAddSecret" in sigs and "AZResetPassword" in sigs
+    # AZHasRole holds a role (logs nothing) and AZVMContributor is resource-plane;
+    # neither is directory-audit measurable, so no signature.
+    assert "AZHasRole" not in sigs
+    assert "AZVMContributor" not in sigs
+
+
+def test_entra_counts_audit_hits_into_observations():
+    from noisehound.entra import build_observations, edge_signatures, _records, _load
+    sigs = edge_signatures(load_corpus())
+    audit = _records(_load(os.path.join(ROOT, "samples", "entra_audit.example.json")))
+    manifest = _load(os.path.join(ROOT, "samples", "entra_runs.example.json"))
+    det = build_observations(manifest, audit, sigs)
+    obs = {o["edge_type"]: o for o in det["observations"]}
+    # GlobalAdmin: two matching role-add records in-window, but 1 run -> capped at runs.
+    assert obs["AZGlobalAdmin"]["detections"] == 1
+    # ResetPassword: 2 runs, only 1 matching audit record -> partial detection rate.
+    assert obs["AZResetPassword"]["runs"] == 2
+    assert obs["AZResetPassword"]["detections"] == 1
+    # AZHasRole has no audit signature -> reported unmeasurable, not scored.
+    assert "AZHasRole" in det["_unmeasurable"]
+    assert "AZHasRole" not in obs
+
+
+def test_entra_window_excludes_out_of_range_records():
+    from noisehound.entra import build_observations, edge_signatures, _records, _load
+    sigs = edge_signatures(load_corpus())
+    audit = _records(_load(os.path.join(ROOT, "samples", "entra_audit.example.json")))
+    # A window that ends before any record -> zero detections for a real edge.
+    manifest = {"environment": "t", "observations": [
+        {"edge_type": "AZAddMembers", "runs": 1,
+         "start": "2020-01-01T00:00:00Z", "end": "2020-01-01T01:00:00Z"}]}
+    det = build_observations(manifest, audit, sigs)
+    assert det["observations"][0]["detections"] == 0
+
+
+def test_entra_profile_calibrates_and_roundtrips():
+    from noisehound.entra import build_observations, edge_signatures, _records, _load
+    from noisehound.calibrate import calibrate
+    from noisehound.environment import EnvironmentProfile
+    sigs = edge_signatures(load_corpus())
+    audit = _records(_load(os.path.join(ROOT, "samples", "entra_audit.example.json")))
+    manifest = _load(os.path.join(ROOT, "samples", "entra_runs.example.json"))
+    det = build_observations(manifest, audit, sigs)
+    profile, records = calibrate(det, load_corpus())
+    assert set(profile["adjustments"]) == {"AZGlobalAdmin", "AZAddMembers",
+                                           "AZAddSecret", "AZResetPassword"}
+    prof = EnvironmentProfile.from_dict(profile)
+    g = _annotated([("P", "APP", "AZAddSecret")])
+    annotate(g, load_corpus(), environment=prof)
+    assert g["P"]["APP"]["effective_noise_score"] == profile["adjustments"]["AZAddSecret"]
+
+
 def test_corpus_validator_passes_clean():
     from noisehound.validate import validate_corpus
     errors, warnings, checked = validate_corpus(

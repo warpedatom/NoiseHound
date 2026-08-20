@@ -8,7 +8,13 @@
       "event_id": null,
       "detail": "Entra ID audit log: 'Add service principal credentials / Update application - Certificates and secrets management' (directory logging is default-on).",
       "reliability": "high",
-      "default_enabled": true
+      "default_enabled": true,
+      "activity": [
+        "Add service principal credentials",
+        "Certificates and secrets management",
+        "Update application"
+      ],
+      "category": "ApplicationManagement"
     },
     {
       "source": "mdca",

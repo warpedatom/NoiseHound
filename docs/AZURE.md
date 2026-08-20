@@ -42,7 +42,39 @@ future Entra posture profile, below).
 | `mdca` | Microsoft Defender for Cloud Apps activity/anomaly policies |
 
 Entra sources use activity **names** (in `detail`), not numeric event IDs, so
-`event_id` is `null` for them.
+`event_id` is `null` for them. The directory-plane abuse edges additionally carry
+a machine-matchable `activity` list (+ `category`) on their `entra_audit`
+telemetry — the exact `activityDisplayName`s their abuse writes to the audit log —
+which the measured tier (`noisehound-entra`, below) matches against a real audit
+export.
+
+## Measured Azure tier (`noisehound-entra`)
+
+The on-prem tiers are *measured*, not estimated: trigger each abuse in a lab and
+count what fired. The same loop works for a lab tenant, with Entra directory
+audits standing in for Windows event logs. `noisehound-entra` is the counter:
+
+```bash
+# 1. In a lab tenant, trigger the AZ* abuses and record what/when in a manifest
+#    (samples/entra_runs.example.json). 2. Export the audit trail:
+#    Entra admin center > Monitoring > Audit logs > Download (JSON), or Graph
+#    GET /auditLogs/directoryAudits. 3. Count + calibrate:
+noisehound-entra -a directoryAudits.json -m entra_runs.json \
+    --profile-out profiles/lab-tenant-azure.json
+# -> a MEASURED Azure profile; drop it into any scoring run:
+noisehound -i azure-export.zip -s analyst@contoso -o "Global Administrator" \
+    -e profiles/lab-tenant-azure.json
+```
+
+It matches each exercised edge's audit `activity` signature within the run window,
+emits `{runs, detections}` observations, and reuses `noisehound-calibrate`'s
+shrinkage math. Holding-only edges (`AZHasRole`, `AZOwns`) and resource-plane
+edges (`AZUserAccessAdministrator`, `AZVMContributor`, `AZRunsAs`) carry no
+directory-audit signature and are reported as *not audit-measurable* rather than
+scored from nothing — their noise surfaces through the concrete follow-on abuse
+(a secret add / member add) or Azure Activity, not directory audits. Optional
+`--risk-detections` (Graph `/identityProtection/riskDetections`) raises matched
+edges to the alert tier. See `docs/AZURE_CALIBRATION.md` for the full recipe.
 
 ## The starter edge set (14)
 
@@ -65,7 +97,10 @@ generates noise, mirroring how `AdminTo` is scored on-prem.
   `sentinel`) that raise the alert-tier edges, like the on-prem posture flags do.
 - **Hybrid edges** (Entra Connect / PHS-PTA / seamless SSO) so **Defender for
   Identity** contributes across the on-prem/cloud boundary.
-- **Calibration in a lab tenant** - measure what actually fires (MDCA/ID
-  Protection/Sentinel) for a measured Azure tier, the way the on-prem tiers were done.
+- **Calibration in a lab tenant** - *tooling shipped* (`noisehound-entra`, above,
+  measures the Entra audit tier). Remaining: run it against a live lab tenant to
+  produce the first measured `profiles/lab-tenant-azure.json`, and extend the
+  counter to the alert tier (ID Protection / Sentinel incidents) beyond the audit
+  signal.
 - **More edges** - Key Vault, Automation/Logic Apps, dynamic-group abuse,
   cross-tenant / B2B, the rest of the AzureHound schema.

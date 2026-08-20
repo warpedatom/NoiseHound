@@ -8,7 +8,12 @@
       "event_id": null,
       "detail": "Entra ID audit log: 'Add member to role / Add eligible member to role (Global Administrator)' (directory logging is default-on).",
       "reliability": "high",
-      "default_enabled": true
+      "default_enabled": true,
+      "activity": [
+        "Add member to role",
+        "Add eligible member to role"
+      ],
+      "category": "RoleManagement"
     },
     {
       "source": "entra_id_protection",

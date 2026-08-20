@@ -8,7 +8,8 @@
       "event_id": null,
       "detail": "Entra ID audit log: 'No event for merely holding ownership; the abuse (Add credential/owner/member) is what logs.' (directory logging is default-on).",
       "reliability": "low",
-      "default_enabled": true
+      "default_enabled": true,
+      "activity": []
     }
   ],
   "mitre_technique": "T1098",

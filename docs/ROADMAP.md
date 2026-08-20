@@ -135,8 +135,12 @@ reflects the tooling spread, not just the loudest case. Most-requested conceptua
 - Commit the real lab graph as a regression fixture with an asserted quietest-path
   (P2); ship the Elastic stack as a documented "stand up your own SIEM tier" recipe.
 - **Azure/Entra** - foundation shipped (13 `AZ*` edges + Entra telemetry,
-  `docs/AZURE.md`). Next: AzureHound-native ingest, Entra posture profiles, hybrid
-  edges (so MDI contributes), and a measured Azure calibration tier.
+  `docs/AZURE.md`) and the **measured audit tier tooling** shipped
+  (`noisehound-entra` + `docs/AZURE_CALIBRATION.md`: Entra `directoryAudits` ->
+  calibrated `lab-tenant-azure` profile, reusing the on-prem calibrate math). Next:
+  run it against a live lab tenant for the first measured profile; AzureHound-native
+  ingest; Entra posture profiles; the alert tier (ID Protection / Sentinel) and the
+  resource-plane (`azure_activity`) counter; hybrid edges so MDI contributes.
 
 ## Status snapshot
 

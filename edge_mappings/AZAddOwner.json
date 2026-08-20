@@ -8,7 +8,12 @@
       "event_id": null,
       "detail": "Entra ID audit log: 'Add owner to application / Add owner to service principal' (directory logging is default-on).",
       "reliability": "high",
-      "default_enabled": true
+      "default_enabled": true,
+      "activity": [
+        "Add owner to application",
+        "Add owner to service principal"
+      ],
+      "category": "ApplicationManagement"
     },
     {
       "source": "mdca",
