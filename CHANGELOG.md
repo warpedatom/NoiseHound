@@ -7,6 +7,17 @@ versioning.
 ## [Unreleased]
 
 ### Added
+- **Measured MDI runtime-alert tier** (`profiles/vulnad-hyperv-mdi.json`,
+  `docs/MDI_RUNTIME_TIER.md`). Overturns the v1.0.0 "MDI runtime is dark on
+  Hyper-V" finding: it was a **classic-sensor capture-path limitation**, not the
+  environment. On the **new v3 (ETW/MDE-integrated) Defender for Identity sensor**
+  (activated via the DC's Defender for Endpoint agent after patching the OS to the
+  sensor baseline), runtime alerts fire on the same Hyper-V lab. Measured over the
+  wire from Kali (Impacket/bloodyAD): Kerberoast + AS-REP at High, RBCD
+  (AllowedToAct) at Medium. Honest gaps recorded: DCSync was *blocked* by Defender
+  XDR Attack Disruption (prevented, not just detected); AddMember / shadow-creds /
+  ADCS ESC1 did not raise MDI runtime alerts. Fourth measured detection tier
+  alongside audit / EDR / Elastic.
 - **`noisehound-elastic` — score against a live Elastic Security detection
   inventory.** Reads enabled detection rules from a running Kibana detection
   engine over the read-only `_find` API (or an offline `--rules-json` export),
