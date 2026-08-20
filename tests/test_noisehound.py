@@ -806,6 +806,28 @@ def test_inspect_reports_adcs_synthesis():
     assert "ADCSESC1" in s["edges"]["by_type"]
 
 
+def test_bundled_lab_sample_is_bhce_ingestable():
+    # sample_lab_ce.zip is a lightly-sanitised real SharpHound CE collection (the
+    # public GOAD sevenkingdoms.local lab), shipped so the operator walkthrough is
+    # a pure upload -> writeback -> view flow. It doubles as a BHCE-ingestion
+    # regression fixture: it must parse with full corpus coverage and carry the
+    # computer-access + session families that only a real collection produces -
+    # AdminTo comes from the modern LocalGroups format, HasSession from Sessions.
+    g = load_graph(os.path.join(ROOT, "samples", "sample_lab_ce.zip"))
+    stats = annotate(g, load_corpus())
+    assert stats.coverage == 1.0, "unknown edge types: %s" % sorted(stats.unknown_types)
+    present = set()
+    for _, _, d in g.edges(data=True):
+        present.update(d.get("edge_types", []))
+    assert {"AdminTo", "HasSession", "MemberOf", "DCSync"} <= present
+    # The documented walkthrough path must stay solvable across refactors.
+    src = find_node(g, "svc_deleg")
+    dst = find_node(g, "Domain Admins")
+    assert src is not None and dst is not None
+    paths = solve(g, src, dst, k=1)
+    assert paths, "svc_deleg -> Domain Admins path disappeared from the sample"
+
+
 def test_defensive_detection_gap_analysis():
     from noisehound.defend import analyse
     g = load_graph(SAMPLE)
@@ -1157,6 +1179,42 @@ def test_ingest_reads_privileged_and_registry_sessions():
     assert g.has_edge("S-WS1", "S-U1")  # from PrivilegedSessions
     assert g.has_edge("S-WS1", "S-U2")  # from RegistrySessions
     assert g["S-WS1"]["S-U1"]["edge_type"] == "HasSession"
+
+
+def test_ingest_reads_modern_localgroups():
+    # SharpHound v2+/BloodHound CE report local-group membership under a single
+    # LocalGroups list keyed by the group's SID; the trailing RID names the group
+    # (544=Administrators, 555=RDP, 562=DCOM, 580=WinRM). The legacy per-collection
+    # LocalAdmins/RemoteDesktopUsers/... arrays are gone from v2.13, so without a
+    # LocalGroups handler NoiseHound silently drops AdminTo/CanRDP/ExecuteDCOM/
+    # CanPSRemote on every current collection (regression from a real v2.13 export).
+    comp = "S-1-5-21-1-2-3-1106"
+    export = {"computers.json": {"meta": {"type": "computers"}, "data": [{
+        "ObjectIdentifier": comp,
+        "Properties": {"name": "WK1@CORP"}, "Aces": [],
+        "LocalGroups": [
+            {"ObjectIdentifier": comp + "-544",
+             "Results": [{"ObjectIdentifier": "S-ADMIN", "ObjectType": "User"}]},
+            {"ObjectIdentifier": comp + "-555",
+             "Results": [{"ObjectIdentifier": "S-RDP", "ObjectType": "Group"}]},
+            {"ObjectIdentifier": comp + "-562",
+             "Results": [{"ObjectIdentifier": "S-DCOM", "ObjectType": "User"}]},
+            {"ObjectIdentifier": comp + "-580",
+             "Results": [{"ObjectIdentifier": "S-WINRM", "ObjectType": "User"}]},
+            {"ObjectIdentifier": comp + "-513",  # unmapped RID must be ignored
+             "Results": [{"ObjectIdentifier": "S-NOISE", "ObjectType": "User"}]},
+        ],
+    }]}}
+    zpath = _bh_zip(export)
+    try:
+        g = load_graph(zpath)
+    finally:
+        os.remove(zpath)
+    assert g["S-ADMIN"][comp]["edge_type"] == "AdminTo"
+    assert g["S-RDP"][comp]["edge_type"] == "CanRDP"
+    assert g["S-DCOM"][comp]["edge_type"] == "ExecuteDCOM"
+    assert g["S-WINRM"][comp]["edge_type"] == "CanPSRemote"
+    assert not g.has_edge("S-NOISE", comp)  # RID 513 has no edge mapping
 
 
 def test_ingest_tolerates_utf8_bom_in_zip():

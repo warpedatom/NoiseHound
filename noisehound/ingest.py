@@ -183,6 +183,28 @@ def _parse_bh_node(g: nx.DiGraph, node: dict, node_type: str) -> None:
                 _add_node(g, pid, r.get("ObjectType", "Base"))
                 _add_edge(g, pid, oid, edge)
 
+    # Modern SharpHound (v2+/BloodHound CE) reports local-group membership under
+    # a single LocalGroups list keyed by each local group's SID; the trailing RID
+    # identifies the group. The legacy per-collection arrays above are gone from
+    # v2.13 output, so without this NoiseHound silently misses AdminTo/CanRDP/etc.
+    # on every current collection. Both formats are read for back-compat.
+    _LOCALGROUP_EDGE = {
+        "544": "AdminTo",       # Administrators
+        "555": "CanRDP",        # Remote Desktop Users
+        "562": "ExecuteDCOM",   # Distributed COM Users
+        "580": "CanPSRemote",   # Remote Management Users (WinRM)
+    }
+    for lg in node.get("LocalGroups", []) or []:
+        rid = str(lg.get("ObjectIdentifier", "")).rsplit("-", 1)[-1]
+        edge = _LOCALGROUP_EDGE.get(rid)
+        if not edge:
+            continue
+        for r in lg.get("Results", []) or []:
+            pid = r.get("ObjectIdentifier")
+            if pid:
+                _add_node(g, pid, r.get("ObjectType", "Base"))
+                _add_edge(g, pid, oid, edge)
+
     # Sessions: computer --HasSession--> user. BloodHound CE splits sessions
     # across three collections - Sessions (NetSessionEnum), PrivilegedSessions
     # (LoggedOn), and RegistrySessions (remote registry) - all with the same
