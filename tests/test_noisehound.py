@@ -1421,6 +1421,36 @@ def test_azure_synthesis_addmembers_addsecret_resetpassword():
     assert not g.has_edge("U-PWDADMIN", "U-GA")
 
 
+def test_azure_synthesis_addmembers_directory_writers_and_governance():
+    # Regression for the review finding: post.go's non-role-assignable AddMembers
+    # tier also includes Directory Writers + Identity Governance Administrator,
+    # which were previously omitted (silent under-report). Confirm both now grant
+    # AZAddMembers.
+    from noisehound.azure_synthesis import (
+        ROLE_DIRECTORY_WRITERS, ROLE_IDENTITY_GOVERNANCE_ADMIN,
+    )
+    doc = {
+        "meta": {"type": "azure", "count": 0},
+        "data": [
+            {"kind": "AZTenant", "data": {"id": "/TENANTS/T1", "displayName": "T"}},
+            {"kind": "AZUser", "data": {"id": "U-DW", "displayName": "DW"}},
+            {"kind": "AZUser", "data": {"id": "U-IGA", "displayName": "IGA"}},
+            {"kind": "AZGroup", "data": {"id": "GRP1", "displayName": "GRP1"}},
+            {"kind": "AZRole", "data": {"id": "R-DW", "templateId": ROLE_DIRECTORY_WRITERS, "displayName": "Directory Writers"}},
+            {"kind": "AZRole", "data": {"id": "R-IGA", "templateId": ROLE_IDENTITY_GOVERNANCE_ADMIN, "displayName": "Identity Governance Administrator"}},
+            {"kind": "AZRoleAssignment", "data": {"roleAssignments": [{"principalId": "U-DW", "roleDefinitionId": "R-DW"}]}},
+            {"kind": "AZRoleAssignment", "data": {"roleAssignments": [{"principalId": "U-IGA", "roleDefinitionId": "R-IGA"}]}},
+        ],
+    }
+    path = _write_json(doc)
+    try:
+        g = load_graph(path)
+    finally:
+        os.remove(path)
+    assert "AZAddMembers" in g["U-DW"]["GRP1"]["edge_types"]
+    assert "AZAddMembers" in g["U-IGA"]["GRP1"]["edge_types"]
+
+
 def _run_all():
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0

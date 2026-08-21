@@ -49,6 +49,8 @@ ROLE_GROUPS_ADMIN = "fdd7a751-b60b-444a-984c-02652fe8fa1c"
 ROLE_APP_ADMIN = "9b895d92-2cd3-44c7-9d02-a6ac2d5ea5c3"
 ROLE_CLOUD_APP_ADMIN = "158c047a-c907-4556-b7ef-446551a6b5f7"
 ROLE_INTUNE_ADMIN = "3a2c62db-5318-420d-8d74-23affee5d9d5"
+ROLE_DIRECTORY_WRITERS = "9360feb5-f418-4baa-8175-e2a00bac4301"
+ROLE_IDENTITY_GOVERNANCE_ADMIN = "45d8d3c5-c802-45c6-b32a-1d70b5e1e86e"
 
 # The full set of roles this module reasons about, for the "non-admin" target
 # pool in AZResetPassword (a user holding none of these is a plain target).
@@ -56,6 +58,7 @@ _ALL_NAMED_ROLES = {
     ROLE_GLOBAL_ADMIN, ROLE_PRIVILEGED_ROLE_ADMIN, ROLE_PRIVILEGED_AUTH_ADMIN,
     ROLE_USER_ADMIN, ROLE_HELPDESK_ADMIN, ROLE_AUTH_ADMIN, ROLE_PASSWORD_ADMIN,
     ROLE_GROUPS_ADMIN, ROLE_APP_ADMIN, ROLE_CLOUD_APP_ADMIN, ROLE_INTUNE_ADMIN,
+    ROLE_DIRECTORY_WRITERS, ROLE_IDENTITY_GOVERNANCE_ADMIN,
 }
 
 
@@ -108,6 +111,8 @@ def synthesize_azure(g: nx.DiGraph) -> int:
     app_admin = _role_holders(g, ROLE_APP_ADMIN)
     cloud_app_admin = _role_holders(g, ROLE_CLOUD_APP_ADMIN)
     intune_admin = _role_holders(g, ROLE_INTUNE_ADMIN)
+    dir_writers = _role_holders(g, ROLE_DIRECTORY_WRITERS)
+    identity_gov = _role_holders(g, ROLE_IDENTITY_GOVERNANCE_ADMIN)
 
     # AZGlobalAdmin / AZPrivilegedRoleAdmin: role holder -> tenant.
     if tenant:
@@ -116,10 +121,12 @@ def synthesize_azure(g: nx.DiGraph) -> int:
         for p in pra:
             draw(p, tenant, "AZPrivilegedRoleAdmin")
 
-    # AZAddMembers: GA/PRA -> all groups; Groups/User/Intune admin -> all groups
-    # too (the real rule restricts the second tier to non-role-assignable
-    # groups only; not applied here - see module docstring).
-    add_members_holders = ga | pra | groups_admin | user_admin | intune_admin
+    # AZAddMembers: GA/PRA -> all groups; the non-role-assignable tier
+    # (Groups/User/Intune/DirectoryWriters/IdentityGovernance admin) -> all
+    # groups too here (the real rule restricts that tier to non-role-assignable
+    # groups only; not applied - see module docstring).
+    add_members_holders = (ga | pra | groups_admin | user_admin | intune_admin
+                           | dir_writers | identity_gov)
     for p in add_members_holders:
         for grp in all_groups:
             draw(p, grp, "AZAddMembers")
