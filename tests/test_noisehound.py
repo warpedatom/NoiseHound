@@ -1066,6 +1066,25 @@ def test_elastic_profile_roundtrips_into_scoring(capsys):
     assert g["P"]["DOM"]["effective_noise_score"] == 70
 
 
+def test_elastic_structural_edges_excluded_from_denominator():
+    from noisehound.elastic import _is_measurable, _render_report
+    corpus = load_corpus()
+    by = {e["edge_type"]: e for e in corpus}
+    # Structural topology edges carry no technique and no telemetry event id.
+    assert _is_measurable(by["Contains"]) is False
+    assert _is_measurable(by["GpLink"]) is False
+    # A real abuse is measurable: technique (AZVMContributor=T1651) or event id (DCSync).
+    assert _is_measurable(by["AZVMContributor"]) is True
+    assert _is_measurable(by["DCSync"]) is True
+    # The report denominator counts measurable edges only, and names the excluded ones.
+    n_measurable = sum(1 for e in corpus if _is_measurable(e))
+    report = _render_report(corpus, {}, 0)
+    assert "0/%d measurable edges" % n_measurable in report
+    assert "Not measurable by this source" in report
+    assert "Contains" in report.split("Not measurable")[1]
+    assert "GpLink" in report.split("Not measurable")[1]
+
+
 def test_path_detection_probability_model():
     from noisehound.probability import path_detection_probability, score_to_probability
     cfg = ScoringConfig(correlation=0.5)

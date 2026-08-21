@@ -184,12 +184,28 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def _is_measurable(edge) -> bool:
+    """True if a detection source could ever fire on this edge.
+
+    An edge is measurable only if its abuse leaves a signal: a MITRE technique a
+    behavioural rule can agree on, or a concrete telemetry event id. Structural
+    topology edges (``Contains``, ``GpLink``) carry neither - nothing *happens*
+    when they exist, so no honest rule can match them. Counting them as coverage
+    gaps understates the defender's posture, the same way the Azure recipe treats
+    structural ``AZHasRole``/``AZOwns`` as not-measurable-by-source.
+    """
+    if edge.get("mitre_technique"):
+        return True
+    return any(t.get("event_id") for t in edge.get("telemetry") or [])
+
+
 def _render_report(corpus, coverage: dict, n_rules: int) -> str:
-    all_edges = {e["edge_type"] for e in corpus}
-    covered = set(coverage)
-    uncovered = sorted(all_edges - covered)
-    lines = ["ELASTIC COVERAGE  %d/%d corpus edges covered by %d enabled rules"
-             % (len(covered), len(all_edges), n_rules), ""]
+    measurable = {e["edge_type"] for e in corpus if _is_measurable(e)}
+    structural = sorted({e["edge_type"] for e in corpus} - measurable)
+    covered = set(coverage) & measurable
+    uncovered = sorted(measurable - covered)
+    lines = ["ELASTIC COVERAGE  %d/%d measurable edges covered by %d enabled rules"
+             % (len(covered), len(measurable), n_rules), ""]
     lines.append("Covered (edge -> detection floor, match, rule):")
     for et in sorted(coverage, key=lambda e: -coverage[e]["score"]):
         c = coverage[et]
@@ -197,6 +213,11 @@ def _render_report(corpus, coverage: dict, n_rules: int) -> str:
     lines.append("")
     lines.append("Detection gaps - attack edges NO enabled rule covers:")
     lines.append("  " + (", ".join(uncovered) if uncovered else "(none - full coverage)"))
+    if structural:
+        lines.append("")
+        lines.append("Not measurable by this source (structural / no abuse signal - "
+                     "excluded from the denominator):")
+        lines.append("  " + ", ".join(structural))
     return "\n".join(lines)
 
 
