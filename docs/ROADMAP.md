@@ -69,14 +69,22 @@ the owner has), or **blocked** (needs another artifact first).
    `noisehound-elastic`** run - both landed on this repo's `main`
    (2026-08-20); only the live-infra run itself remains, owner-only.
 
+**Done since this section was written**
+- ~~AzureHound-native ingest~~ - **shipped** (`azure_ingest.py` +
+  `azure_synthesis.py`, `docs/AZUREHOUND_NATIVE_INGEST.md`). The recon landed
+  (2026-08-20, real DreadHost tenant collection), grounding both the raw
+  schema and the `post.go` synthesis logic; built and tested same-day against
+  the real trimmed fixture (`samples/azurehound_native.example.json`) plus a
+  synthetic fixture for the tiering logic the real sample doesn't reach.
+  Documented gaps remain (`AZRunsAs` unresolved, a couple of unconfirmed
+  field shapes) - see the doc - but this is no longer the "doesn't exist yet"
+  gap it was.
+
 **Blocked (needs a prior artifact)**
-5. **AzureHound-native ingest** (`docs/AZUREHOUND_NATIVE_INGEST.md`) - blocked
-   on grounding data (a real AzureHound output + BHCE-imported tenant); recon
-   requested, not yet returned. Biggest single gap against "complete" -  a
-   promised capability that doesn't exist yet, not a refinement.
-6. **Hybrid edges** (Entra Connect / PHS-PTA / seamless SSO) so MDI
-   contributes across the on-prem/cloud boundary - depends on #5 landing
-   first (needs real Azure-side principals to link against).
+5. **Hybrid edges** (Entra Connect / PHS-PTA / seamless SSO) so MDI
+   contributes across the on-prem/cloud boundary - now unblocked in principle
+   (native ingest gives real Azure-side principals to link against) but not
+   started.
 
 ---
 
@@ -175,15 +183,12 @@ by leverage:
   bloodyAD). DCSync was *blocked* by Defender XDR Attack Disruption
   (prevented, not scored); AddMember/shadow-creds/ESC1 stayed transient/
   request-only. Measured profile `profiles/vulnad-hyperv-mdi.json` +
-  `docs/MDI_RUNTIME_TIER.md` - built and merged on the main machine, pending
-  cherry-pick onto this repo's `main`.
-- **AzureHound-native ingest - scoped, not built** (`docs/
-  AZUREHOUND_NATIVE_INGEST.md`). Real gap, not a nice-to-have: most of the
-  13-edge Azure starter set is BHCE-backend post-processed, not present in
-  AzureHound's raw collector output, so native ingest needs its own
-  post-processing synthesis pass (mirroring `adcs.py`), not just a parser
-  extension. Blocked on grounding data (a real AzureHound output + BHCE-
-  imported tenant) - recon requested, not yet returned.
+  `docs/MDI_RUNTIME_TIER.md` - landed on this repo's `main`.
+- ~~AzureHound-native ingest - scoped, not built~~ - **shipped** (`docs/
+  AZUREHOUND_NATIVE_INGEST.md`, `azure_ingest.py` + `azure_synthesis.py`).
+  Recon landed 2026-08-20 (real DreadHost tenant collection) and confirmed the
+  hypothesis: only 4 of 13 corpus edges were in raw output, the other 9 needed
+  the synthesis pass - built same-day against real + synthetic fixtures.
 - **The remaining ~26 on-prem edges:** coercion/relay (needs an inbound-reachable
   attacker - flat Proxmox L2), CanRDP (4778), AllExtendedRights (4662
   confidential read). ADCS ESC2-9/11-13 now covered (ESC1-8 + ESC9a/10b/13
@@ -219,13 +224,14 @@ reflects the tooling spread, not just the loudest case. Most-requested conceptua
   calibrated `lab-tenant-azure` profile, reusing the on-prem calibrate math,
   with an ID-Protection alert-tier hook via `--risk-detections`), and
   `defender_for_cloud` is modeled (not measured - needs a paid MDC plan) as
-  the resource-plane alert layer. Next: run `noisehound-entra` against a live
+  the resource-plane alert layer, and `azure_activity` already backs the
+  resource-plane edges' audit half. **AzureHound-native ingest shipped**
+  (see coverage section above). Next: run `noisehound-entra` against a live
   lab tenant for the first *real* measured profile (owner-only, needs tenant
-  access); **AzureHound-native ingest** (scoped, see coverage section above);
-  Sentinel as a second alert-tier source alongside ID Protection; the
-  resource-plane (`azure_activity`) audit counter (`defender_for_cloud` only
-  covers the alert half); hybrid edges (Entra Connect/PHS-PTA/seamless SSO)
-  so MDI contributes across the on-prem/cloud boundary.
+  access); Sentinel as a second alert-tier source alongside ID Protection
+  (needs a design decision, not a mechanical build - see the next-release
+  section); hybrid edges (Entra Connect/PHS-PTA/seamless SSO) so MDI
+  contributes across the on-prem/cloud boundary.
 - **WDAC / App Control** - shipped as a tool-signature source
   (`docs/TOOLING_AXIS.md`) and measured in audit mode on the Hyper-V DC
   (`profiles/vulnad-hyperv-wdac.json`: Rubeus -> Kerberoast/ASREPRoast,
@@ -250,14 +256,19 @@ tooling), tooling-profile axis (`--tooling`) + `--live-scores`, the
 BHCE-ingestable `samples/sample_lab_ce.zip` GOAD sample, probabilistic +
 Pareto pathing, live Neo4j read/write-back, DeadAir Rust engine + `--engine`
 dispatch, corpus validator + schema + CI, Azure/Entra foundation + WDAC +
-Defender for Cloud modeling. **72 tests**, 100% corpus coverage on real
-exports. This repo's `main` and the main machine's now hold the same feature
-set (modulo `docs/WALKTHROUGH.md`, an owner-lineage doc not on this repo -
-separate one-file sync if wanted).
+Defender for Cloud modeling, and **AzureHound-native ingest**
+(`azure_ingest.py` + `azure_synthesis.py` - reads `azurehound list -o` output
+directly, no BHCE required, incl. the post-processing pass for the 9 of 13
+corpus edges that only BHCE's backend used to compute). **75 tests**, 100%
+corpus coverage on real exports. This repo's `main` and the main machine's now
+hold the same on-prem/tooling/Azure feature set (modulo `docs/WALKTHROUGH.md`,
+an owner-lineage doc not on this repo - separate one-file sync if wanted); the
+AzureHound-native ingest work above was built directly on this repo and has
+not yet round-tripped to the main machine.
 
 Owner-only validation still open (live infra/auth, not buildable from either
 machine): upload `sample_lab_ce.zip` into a live BHCE once and confirm Analysis
 completes; run `noisehound-elastic` against the lab Elastic stack; run the
 `docs/AZURE_CALIBRATION.md` recipe in a real lab tenant for the first genuine
-`lab-tenant-azure` profile (everything shipped so far is fixture/synthetic-validated
-for Azure, not yet real-tenant-validated).
+`lab-tenant-azure` profile; validate AzureHound-native ingest against a full,
+non-trimmed real collection (built against a 14-record trimmed sample so far).

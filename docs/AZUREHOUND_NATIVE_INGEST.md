@@ -1,97 +1,87 @@
-# AzureHound-native ingest - scoping
+# AzureHound-native ingest
 
-`docs/AZURE.md` currently claims Azure data is "scored automatically" once it
-reaches NoiseHound. That's true only for the synthetic flat-graph fixture
-(`samples/sample_azure.json`, `{"nodes": [...], "edges": [...]}`). The real
-BloodHound-zip parser (`ingest.py:_BH_TYPE_BY_META`) has **no Azure entries at
-all** - any Azure node in a real BHCE export currently falls through to the
-generic `"Base"` type. There is no verified ingest path for real Azure data
-yet, native or via BHCE. This doc scopes closing that gap.
+Reads `azurehound list -o` output directly - no BloodHound CE required as an
+intermediary for Azure/Entra data. Implemented as two phases, mirroring how
+`adcs.py` handles the equivalent ADCS ESC gap for SharpHound:
 
-## What we know from AzureHound's public source (ungrounded - see below)
+- **Phase 1** (`azure_ingest.py`) - raw ingest: nodes and the structural edges
+  AzureHound's own collectors emit (`AZHasRole`, `AZMemberOf`, `AZOwns`, plus
+  the resource-plane `AZ*Contributor`/`AZ*UserAccessAdmin` collectors).
+- **Phase 2** (`azure_synthesis.py`) - post-processing synthesis: derives the
+  edges BloodHound's *backend* computes and that raw AzureHound output never
+  carries (`AZGlobalAdmin`, `AZPrivilegedRoleAdmin`, `AZAddMembers`,
+  `AZAddSecret`, `AZResetPassword`), from `AZHasRole` + directory role-template
+  matching.
 
-AzureHound's raw output wraps records the same way SharpHound does:
+`ingest.py` detects the format automatically (`meta.type == "azure"`) and runs
+both phases; `load_graph()` works the same way for a BHCE zip, a normalised
+fixture, or a raw `azurehound list -o` file.
 
-```go
-type IngestRequest struct {
-    Meta Meta        `json:"meta"`   // {Type, Version, Count}
-    Data interface{} `json:"data"`
-}
-```
+## Why both phases matter (grounded finding, not a hypothesis)
 
-That's the same `{"meta": {"type", ...}, "data": [...]}` shape
-`_parse_bh_file` already dispatches on - the extension point is adding Azure
-`meta.type` strings to `_BH_TYPE_BY_META`, not a new parser.
+Confirmed against a real `azurehound v3.1.0-rc1 list -o` collection (DreadHost
+tenant, 2026-08-16 recon - see `samples/azurehound_native.example.json` for
+the trimmed real records): **only 4 of the current 13 corpus `AZ*` edges are
+in raw AzureHound output at all** (`AZHasRole`, `AZRunsAs`, `AZVMContributor`,
+`AZOwns`). The other 9 - most of what the corpus is calibrated against - are
+computed by BloodHound's backend from directory-role holdings and never appear
+in the raw collection. Phase 1 alone would silently score almost nothing;
+the same shape of gap the live-Bolt fix closed for ADCS.
 
-Node kinds (a sample of the ~50+): `AZUser`, `AZGroup`, `AZServicePrincipal`,
-`AZApp`, `AZDevice`, `AZTenant`, `AZRole`, `AZKeyVault`, `AZVM`,
-`AZSubscription`, `AZResourceGroup`, `AZManagementGroup`, `AZAutomationAccount`,
-`AZLogicApp`, `AZFunctionApp`, `AZWebApp`, `AZManagedCluster`,
-`AZStorageAccount`, `AZContainerRegistry`.
+## Schema grounding
 
-Unlike on-prem (control edges derived from ACEs embedded on the target node),
-Azure edges arrive as their **own typed records** - `AZMemberOf`, `AZOwner`,
-`AZHasRole`, `AZRunsAs`, `AZContains`, `AZContributor`, `AZGetSecrets`,
-`AZGetKeys`, `AZGetCertificates`, `AZVMContributor`, `AZAvereContributor` -
-each presumably `{source, target, ...}` in `Data`, not a node.
+- **Wrapper**: a single envelope, `{"meta": {"type": "azure", ...}, "data":
+  [{"kind": "<Kind>", "data": {...}}, ...]}` - each element carries its own
+  `kind`; this is the on-disk `list -o` file shape, *not* the streaming
+  `IngestRequest{Meta,Data}` wrapper AzureHound's source docs describe (an
+  early source-only inference in this doc's history got that wrong - the real
+  collection run corrected it).
+- **IDs are UPPERCASED** on output.
+- **Directory-plane edges** (`AZRoleAssignment`, `AZGroupMember`, ...): a flat
+  `principalId`/`member.id` reference.
+- **Resource-plane edges** (`AZ*Owner`/`AZ*Contributor`/`AZ*UserAccessAdmin`
+  on ARM resources) use a **different, ARM-nested shape** -
+  `<role>s[].<role>.properties.principalId`, container id `/SUBSCRIPTIONS/...`
+  etc. - confirmed by adding a real subscription to the recon tenant and
+  re-collecting. A naive single handler for both would silently miss the
+  resource plane.
+- **Role-template GUIDs** (Global Administrator, Application Administrator,
+  ...) are stable, tenant-independent Entra constants - sourced from
+  BloodHound's `graphschema/azure` via the recon, not guessed.
 
-## The real finding: raw collection != what the corpus scores
+Full sourcing, the per-collector data shapes, and the `post.go` resolution
+logic per edge are in the 2026-08-19/20 recon (`RECON_REPORT.md`, folded into
+this implementation) - see the module docstrings in `azure_ingest.py` /
+`azure_synthesis.py` for the exact citations kept alongside the code.
 
-AzureHound's Kind list splits cleanly into two groups, and the split matters:
+## Known gaps / simplifications (documented in the code, repeated here for visibility)
 
-**Raw / collection-time** (present in AzureHound's own output): `AZHasRole`,
-`AZMemberOf`, `AZOwner`, `AZRunsAs`, `AZContains`, `AZContributor`,
-`AZGetSecrets`, `AZGetKeys`, `AZGetCertificates`, `AZVMContributor`,
-`AZAvereContributor`.
+- **`AZAddMembers`'s "non-role-assignable groups only" restriction is not
+  applied.** The `isAssignableToRole` group property wasn't in the recon
+  sample; the affected roles (Groups/User/Intune Administrator) currently
+  target *all* groups rather than risk an unconfirmed property name. Fail-safe
+  over-report, same convention as ESC9a/10b.
+- **`PartnerTier2Support` and `KnowledgeAdministrator`** (mentioned
+  qualitatively in `post.go`'s target rules) have no sourced role-template
+  GUID and are not synthesised.
+- **`AZUserAccessAdministrator` is intentionally not in phase-2 synthesis** -
+  the recon found it's not in `post.go` at all; it's an Azure RBAC
+  resource-plane edge that phase-1's resource-role handler already emits
+  directly from the `*UserAccessAdmin` collectors.
+- **`AZRunsAs`'s exact collector/data shape was never resolved** - not
+  synthesised or ingested; a real gap, not a guess.
+- Directory-plane `*Owner` collectors' populated entry shape (vs. the
+  confirmed resource-plane nesting) wasn't in the recon sample (both examples
+  collected were `owners: null`) - assumed flat, with a fallback to the
+  resource-plane shape. Unconfirmed against real populated data.
+- Resource-plane container-id field names beyond `subscriptionId` (confirmed)
+  and `virtualMachineId` (confirmed via source) follow the same naming
+  convention by inference, not individually real-sampled.
 
-**Post-processed** (BloodHound's backend computes these from the raw edges -
-explicitly labelled "Post-processed relationships" in AzureHound's source):
-`AZGlobalAdmin`, `AZPrivilegedRoleAdmin`, `AZAddMembers`, `AZAddSecret`,
-`AZExecuteCommand`, `AZGrant`, `AZGrantSelf`, `AZResetPassword`,
-`AZUserAccessAdministrator`.
+## Status
 
-The current 13-edge starter set (`docs/AZURE.md`) is mostly the **second**
-group. This is the same shape of gap the Bolt-ingest fix
-(`neo4j_ingest.py`, landed alongside ESC9/10/13) just closed for ADCS: BHCE's
-post-processing computes edges that raw collection doesn't carry, and a
-"native ingest" path that skips BHCE entirely will silently under-report most
-of what the corpus currently scores, not just miss a nice-to-have.
-
-## What native ingest requires - two phases
-
-1. **Raw ingest**: extend `_BH_TYPE_BY_META` for Azure node kinds; handle
-   edge-typed records (`AZMemberOf`/`AZOwner`/`AZHasRole`/`AZRunsAs`/...)
-   directly rather than deriving them from a node's `Aces`, since Azure's
-   collection model doesn't embed ACEs on target nodes the way SharpHound does.
-2. **Azure post-processing synthesis** (new `noisehound/azure_synthesis.py`,
-   same shape as `adcs.py`): reimplement the role/membership resolution
-   BloodHound's backend performs, to recover `AZGlobalAdmin` /
-   `AZPrivilegedRoleAdmin` / `AZAddMembers` / `AZAddSecret` / `AZResetPassword`
-   / `AZUserAccessAdministrator` from the raw structural edges. Without this,
-   phase 1 alone ingests real data but scores almost nothing the current
-   corpus edges are calibrated against.
-
-## Grounding gap
-
-Everything above comes from AzureHound's public Go source (`pkg.go.dev`,
-`github.com/SpecterOps/AzureHound`), not a real collection - unlike the
-ESC9/10/13 work, which was grounded against the real `sevenkingdoms` SharpHound
-JSON before any code was written. Needed before writing ingest code:
-
-- A real AzureHound raw output file (`azurehound list ... -o out.json` against
-  a lab/dev tenant), to confirm exact `meta.type` strings and the `Data` shape
-  for a representative node kind and a representative edge kind.
-- The same tenant imported into BHCE, to diff raw AzureHound output against
-  BHCE's post-processed graph and confirm exactly which of the 13 starter
-  edges are backend-computed vs. already present raw (the source-level split
-  above is a starting hypothesis, not confirmed against real data).
-- If a real tenant isn't available, the fallback is reading AzureHound's
-  actual Go source for the post-processing analysis logic (SpecterOps/BloodHound
-  `cmd/api/src/analysis/azure` or similar) rather than guessing the resolution
-  rules from edge names alone.
-
-## Roadmap status
-
-Not started. Blocked on grounding data above. Unblocks fully once batch 1's
-Azure foundation (13 AZ* edges, corpus, `sample_azure.json`) is merged, since
-this phase replaces the ingest side while reusing that corpus work unchanged.
+Built and tested (`test_azure_ingest_real_sample_grounds_phase1_and_phase2`
+against the real trimmed fixture; `test_azure_synthesis_addmembers_addsecret_resetpassword`
+against a synthetic fixture covering the tiering logic the real sample doesn't
+reach). Not yet validated against a full, non-trimmed real collection or a
+second tenant - the gaps above are exactly where that would matter most.

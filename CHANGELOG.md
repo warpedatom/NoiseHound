@@ -7,6 +7,20 @@ versioning.
 ## [Unreleased]
 
 ### Added
+- **AzureHound-native ingest** (`noisehound/azure_ingest.py` +
+  `noisehound/azure_synthesis.py`). Reads `azurehound list -o` output
+  directly - no BloodHound CE required for Azure/Entra data. Two phases:
+  raw ingest of nodes and AzureHound's own structural edges (`AZHasRole`,
+  `AZMemberOf`, `AZOwns`, resource-plane `AZ*Contributor`/`AZ*UserAccessAdmin`),
+  plus a post-processing synthesis pass recovering `AZGlobalAdmin`,
+  `AZPrivilegedRoleAdmin`, `AZAddMembers`, `AZAddSecret`, and
+  `AZResetPassword` from directory role-holdings - the 9 of 13 corpus edges
+  that only BloodHound's backend used to compute and that raw AzureHound
+  output never carries. Grounded against a real `azurehound v3.1` collection
+  (recon 2026-08-16/20); `samples/azurehound_native.example.json` ships a
+  trimmed, sanitised real fixture. `docs/AZUREHOUND_NATIVE_INGEST.md` has
+  the full schema grounding and documented gaps (`AZRunsAs` unresolved, a
+  couple of unconfirmed field shapes).
 - **Measured MDI runtime-alert tier** (`profiles/vulnad-hyperv-mdi.json`,
   `docs/MDI_RUNTIME_TIER.md`). Overturns the v1.0.0 "MDI runtime is dark on
   Hyper-V" finding: it was a **classic-sensor capture-path limitation**, not the
