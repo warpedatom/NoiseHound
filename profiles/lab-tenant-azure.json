@@ -1,0 +1,13 @@
+{
+  "_comment": "MEASURED Azure tier - Entra directory-audit calibration (noisehound-entra v1.0.0). Pass with 'noisehound -e'.",
+  "name": "lab-tenant-azure",
+  "adjustments": {
+    "AZGlobalAdmin": 67,
+    "AZAddMembers": 51,
+    "AZAddSecret": 58,
+    "AZMGAddSecret": 60,
+    "AZAppAdmin": 60,
+    "AZCloudAppAdmin": 60,
+    "AZAddOwner": 55
+  }
+}
