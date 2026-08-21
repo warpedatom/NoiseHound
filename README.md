@@ -20,20 +20,15 @@ NoiseHound ingests the same graph data and re-ranks paths by **expected
 detection cost** instead of hop count, so an operator can ask "what is the
 quietest way to Domain Admin" instead of just "what is a way".
 
-> **New here? Start with the [Operator Walkthrough](docs/WALKTHROUGH.md)** — a
-> hands-on, screenshot-driven tutorial that takes you from install to a live
-> BloodHound CE proof of concept (scores written back into the BloodHound UI),
-> the DeadAir engine, and the blue-team detection-gap report.
-
 > **Project status (v1.0):** stable and tested on real BloodHound data across
-> multiple domains. **30 of 57 corpus
-> edges are now lab-measured** across four detection tiers (audit, Defender for
-> Endpoint, Elastic SIEM, and MDI posture) - shipped as drop-in profiles in
-> [`profiles/`](profiles/), with closed-loop proof that they change path rankings
-> ([`docs/VALIDATION.md`](docs/VALIDATION.md)). The remaining ~28 edges still carry
-> **expert estimates**; the calibration harness (`noisehound-calibrate`,
-> `docs/CALIBRATION.md`) is how they, and your own environment, get measured. Treat
-> uncalibrated rankings as well-reasoned guidance, not ground truth.
+> multiple domains. **30 of the 57 on-prem edges are lab-measured** across four
+> detection tiers (audit, Defender for Endpoint, Elastic SIEM, and MDI posture) -
+> shipped as drop-in profiles in [`profiles/`](profiles/), with closed-loop proof
+> they change path rankings ([`docs/VALIDATION.md`](docs/VALIDATION.md)). The corpus
+> also now includes 13 **Azure/Entra** edges ([`docs/AZURE.md`](docs/AZURE.md)).
+> Un-measured on-prem and all Azure edges carry **expert estimates**; the calibration
+> harness (`noisehound-calibrate`) is how they, and your own environment, get
+> measured. Treat uncalibrated rankings as well-reasoned guidance, not ground truth.
 
 > For authorized engagements only. This tool scores attack paths for OPSEC
 > planning against systems you have written permission to test.
@@ -339,6 +334,25 @@ noisehound-sigma -r ./sigma-rules/ -o env.sigma.json
 python -m noisehound -i export.zip -s jdoe -o "Domain Admins" -e env.sigma.json --defensive
 ```
 
+For the identity tier, **`noisehound-mdi`** does the same against Microsoft Defender
+for Identity's built-in detections - it maps MDI's runtime alerts (and, with
+`--include-posture`, its ISPM assessments) onto corpus edges and emits an
+identity-tier profile. MDI is tool-agnostic, so its coverage holds regardless of the
+attacker's tooling.
+
+```bash
+noisehound-mdi -o env.mdi.json          # + coverage report (which edges MDI watches, and the gaps)
+```
+
+For the **Azure/Entra** edges, **`noisehound-entra`** measures the cloud tier the
+way the on-prem tiers were measured: trigger the `AZ*` abuses in a lab tenant,
+export the Entra `directoryAudits` trail, and it counts what actually logged into a
+calibrated profile (`docs/AZURE_CALIBRATION.md`).
+
+```bash
+noisehound-entra -a directoryAudits.json -m entra_runs.json --profile-out profiles/lab-tenant-azure.json
+```
+
 Matching is deliberately conservative so it never hides a gap: a rule only
 counts if it references an event ID the edge generates *and*, when the rule is
 ATT&CK-tagged, its technique agrees - so a DS-Access (4662) DCSync rule is not
@@ -346,6 +360,26 @@ miscredited with covering LAPS reads that merely share the event ID. The report
 lists both what your rules cover and, more usefully, the attack edges no rule
 covers. Combined with `--defensive`, this answers "given the detections I have
 deployed, where is my quietest attack path still invisible?"
+
+### Live Elastic Security inventory
+
+`noisehound-elastic` answers the same question against detections that are
+**actually enabled right now** in a running Elastic Security stack, rather than
+rules on disk. It reads the detection engine over Kibana's read-only `_find` API
+(or an offline export), maps each enabled rule's ATT&CK technique and any Windows
+event codes in its query, and emits the same `--environment` coverage profile.
+
+```bash
+export KIBANA_URL=https://kibana:5601 KIBANA_API_KEY=<base64 ApiKey>
+noisehound-elastic -o env.elastic.json                                   # live, read-only
+noisehound-elastic --rules-json rules_find.json -o env.elastic.json      # offline export
+python -m noisehound -i export.zip -s jdoe -o "Domain Admins" -e env.elastic.json --defensive
+```
+
+It reuses the Sigma matcher and adds a technique-only tier (flagged `[technique]`,
+scored lower) for the behavioural KQL/EQL rules that never name an event code.
+Disabled rules are ignored. Same normalise-then-score pattern for Splunk /
+Sentinel / MDI next.
 
 ---
 
@@ -421,21 +455,26 @@ detection facts. Tune them against your own lab detection data.
 
 ## Roadmap
 
-- **Calibration - done for 30/57 edges, continuing.** Three measured profiles ship
-  in [`profiles/`](profiles/) (audit / EDR / Elastic tiers) with closed-loop
-  validation. Remaining: the other ~28 edges (coercion/relay, ADCS ESC2-13, CanRDP),
-  the **MDI runtime-alert tier** (posture works; the alert path needs a bare-metal/
-  Ludus DC - see `docs/CALIBRATION.md`), and a selectable **tooling-profile axis**
-  (`docs/TOOLING_AXIS.md`) so scores reflect off-the-shelf vs native tradecraft.
-- **Phase 2 - live detection validation.** Replace static scores with
-  `live_noise_score` pulled from a real target's Defender/Sysmon/audit config,
-  reusing OffsetInspect's detection-boundary logic. `annotate()` already accepts
-  a `live_scores` override; the CLI hook lands in Phase 2.
-- **Live Neo4j ingestion** over Bolt against the same DB SharpHound populates
-  (offline zip ingestion ships now).
-- **ADCS ESC9/10/13** synthesis (ESC1-8 ship now).
-- **Rust port** of the scoring engine (petgraph), mirroring the
-  OffsetInspect -> OffsetScan pattern, once the data model is proven.
+- **Azure / Entra ID coverage (foundation shipped, expanding).** 13 `AZ*`
+  attack-path edges now ship with Entra-native detection telemetry - see
+  [`docs/AZURE.md`](docs/AZURE.md). Azure data collected via AzureHound into
+  BloodHound CE is scored today (`noisehound -o "Global Administrator"`). Next:
+  AzureHound-native ingestion, Entra posture profiles (MDCA / ID Protection /
+  Sentinel), hybrid edges (Entra Connect / PHS-PTA) so **MDI** contributes across
+  the on-prem/cloud boundary, and a measured Azure calibration tier.
+- **Finish calibration - 30/57 measured, continuing.** Remaining ~27 edges
+  (coercion/relay, ADCS ESC2-13), the **MDI runtime-alert tier** (posture works;
+  the alert path needs a bare-metal/Ludus DC - see `docs/CALIBRATION.md`), and a
+  multi-EDR corpus (CrowdStrike/S1 beside MDE), plus per-edge tooling calibration to
+  broaden the `--tooling` axis.
+- **ADCS ESC10a/10b/13 synthesis** (ESC1-9 synthesis ships now).
+
+Shipped: the Rust engine ([DeadAir](https://github.com/warpedatom/DeadAir), `--engine` dispatch), live Neo4j
+Bolt ingestion (`--input bolt://...`), the selectable **`--tooling`** axis
+(off-the-shelf-on-host vs remote/native; `docs/TOOLING_AXIS.md`), the Phase 2
+**`--live-scores`** hook (measured scores override the corpus/environment), and
+**`noisehound-mdi`** (Defender for Identity coverage -> identity-tier profile). The
+remaining MDI work is the lab-gated *runtime-alert calibration* (`docs/CALIBRATION.md`).
 
 ## Contributing
 
@@ -491,8 +530,5 @@ edge_mappings/     the telemetry corpus (one JSON per edge type) - the IP
 samples/           sample_graph.json, sample_bloodhound_ce.zip, sample_adcs_ce.zip,
                    sample_fullspectrum_ce.zip, env_profile.example.json,
                    lab_detections.example.json, sample_report.html
-docs/              WALKTHROUGH.md (start here), CYPHER.md, VALIDATION.md,
-                   CALIBRATION.md, ROADMAP.md, seed_demo_graph.cypher,
-                   seed_showcase_graph.cypher, images/
 tests/             unit + end-to-end tests
 ```

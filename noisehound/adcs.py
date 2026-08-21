@@ -1,4 +1,4 @@
-"""AD CS ESC1-8 edge synthesis.
+"""AD CS ESC1-13 edge synthesis.
 
 BloodHound collects the certificate-template and enterprise-CA facts needed to
 reason about AD CS domain escalation but leaves the ESC edges to a post-
@@ -16,7 +16,16 @@ Known simplifications (documented; they fail safe toward showing more paths):
   are treated as sufficient. Real environments often let Authenticated Users
   enroll at the CA, so this is usually correct and otherwise over-reports.
 - ESC5 covers control of the CA object or its hosting computer, not every PKI
-  container object. ESC9/10/13 are out of scope for this pass.
+  container object.
+- ESC9a (no-security-extension) and ESC10b (schannel weak-mapping) fire on the
+  positive *template* signal (nosecurityextension / schannelauthenticationenabled)
+  and treat the required write-over-victim / weak-DC-binding step as satisfied -
+  a fail-safe over-report. ESC10a (Kerberos weak binding) has no template-level
+  signal - it depends only on the DC registry setting
+  StrongCertificateBindingEnforcement, which BloodHound does not currently collect
+  - so it is intentionally not synthesised here.
+- ESC13 draws its edge to the OID-linked *group*, not Domain Admins, and requires
+  the IssuancePolicy's msDS-OIDToGroupLink (loaded by ingest.py).
 - Synthetic ESC edges already present in a post-processed export are preserved.
 """
 from __future__ import annotations
@@ -171,6 +180,8 @@ def synthesize_adcs(g: nx.DiGraph) -> int:
             supplies_san = _truthy(tp.get("enrolleesuppliessubject"))
             any_purpose = ANY_PURPOSE_EKU in ekus or len(ekus) == 0
             agent = ENROLLMENT_AGENT_EKU in ekus
+            no_sec_ext = _truthy(tp.get("nosecurityextension"))
+            schannel = _truthy(tp.get("schannelauthenticationenabled"))
             enrollers = _principals_with(g, tid, ENROLL_RIGHTS)
 
             if approval or ra_sigs > 0:
@@ -184,6 +195,19 @@ def synthesize_adcs(g: nx.DiGraph) -> int:
             if san_enabled and auth:
                 for p in enrollers:
                     esc(p, target, "ADCSESC6")
+            # ESC9: no-security-extension auth template - enrol as a victim whose
+            # UPN was rewritten (the write-over-victim step is a fail-safe
+            # assumption; the missing security extension is the positive signal).
+            if auth and no_sec_ext:
+                for p in enrollers:
+                    esc(p, target, "ADCSESC9a")
+            # ESC10 (Schannel variant): a schannel-auth template maps a cert to an
+            # account via weak DC binding. The DC registry posture
+            # (CertificateMappingMethods) is not in BloodHound's collection, so
+            # this fires on the template signal alone and over-reports (fail safe).
+            if auth and schannel:
+                for p in enrollers:
+                    esc(p, target, "ADCSESC10b")
             if agent:
                 agent_templates.append(enrollers)
             if auth:
@@ -206,5 +230,30 @@ def synthesize_adcs(g: nx.DiGraph) -> int:
             continue
         for p in _principals_with(g, tid, TEMPLATE_CONTROL_RIGHTS):
             esc(p, target, "ADCSESC4")
+
+    # ESC13: a template that asserts an issuance-policy OID which is linked to a
+    # group (msDS-OIDToGroupLink) grants its enrollers membership in that group -
+    # so the escalation target is the linked group, not Domain Admins.
+    policy_group: dict = {}
+    for _pid, pd in g.nodes(data=True):
+        if pd.get("type") != "IssuancePolicy" or not pd.get("oid_group_link"):
+            continue
+        pp = pd.get("props", {}) or {}
+        for oidval in (pp.get("certtemplateoid"), pp.get("oid"), pp.get("name")):
+            if oidval:
+                policy_group[str(oidval).strip().lower()] = pd["oid_group_link"]
+    if policy_group:
+        for tid, node in templates.items():
+            if tid not in published:
+                continue
+            tp = node.get("props", {}) or {}
+            asserted = tp.get("issuancepolicies") or tp.get("certificatepolicy") or []
+            if isinstance(asserted, str):
+                asserted = [asserted]
+            for oidval in asserted:
+                grp = policy_group.get(str(oidval).strip().lower())
+                if grp and grp in g:
+                    for p in _principals_with(g, tid, ENROLL_RIGHTS):
+                        esc(p, grp, "ADCSESC13")
 
     return added

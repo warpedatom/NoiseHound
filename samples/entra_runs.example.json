@@ -1,0 +1,11 @@
+{
+  "_comment": "Example noisehound-entra run manifest: which AZ* edges the operator abused in the lab tenant, how many times, and the time window. Pairs with entra_audit.example.json. AZHasRole is declared to show a not-audit-measurable edge (holding a role logs nothing).",
+  "environment": "lab-tenant-azure",
+  "observations": [
+    {"edge_type": "AZGlobalAdmin",  "runs": 1, "start": "2026-08-20T00:00:00Z", "end": "2026-08-20T01:00:00Z"},
+    {"edge_type": "AZAddMembers",   "runs": 1, "start": "2026-08-20T00:00:00Z", "end": "2026-08-20T01:00:00Z"},
+    {"edge_type": "AZAddSecret",    "runs": 1, "start": "2026-08-20T00:00:00Z", "end": "2026-08-20T01:00:00Z"},
+    {"edge_type": "AZResetPassword","runs": 2, "start": "2026-08-20T00:00:00Z", "end": "2026-08-20T01:00:00Z"},
+    {"edge_type": "AZHasRole",      "runs": 1, "start": "2026-08-20T00:00:00Z", "end": "2026-08-20T01:00:00Z"}
+  ]
+}

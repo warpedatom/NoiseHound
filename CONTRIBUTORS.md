@@ -1,6 +1,6 @@
 # Contributors
 
-NoiseHound (and its companion engine [DeadAir](../deadair)) is built and
+NoiseHound (and its companion engine [DeadAir](https://github.com/warpedatom/DeadAir)) is built and
 maintained by:
 
 - **Velkris** ([@warpedatom](https://github.com/warpedatom)) - DreadHost Research

@@ -1,0 +1,19 @@
+{
+  "edge_type": "AZHasRole",
+  "description": "Principal holds an Entra directory role - a standing right; noise depends on which role and its use.",
+  "static_noise_score": 40,
+  "telemetry": [
+    {
+      "source": "entra_audit",
+      "event_id": null,
+      "detail": "Entra ID audit log: 'No event for holding a role; role *use* (grants, resets, credential adds) is what logs.' (directory logging is default-on).",
+      "reliability": "low",
+      "default_enabled": true,
+      "activity": []
+    }
+  ],
+  "mitre_technique": "T1078.004",
+  "prerequisite_privilege": "The relevant Entra role assignment",
+  "abuse_primitive": "Exercise the role's rights (varies by role); the specific action sets the detection cost.",
+  "notes": "Passive right; scored low. The concrete abuse edge it enables carries the real noise."
+}

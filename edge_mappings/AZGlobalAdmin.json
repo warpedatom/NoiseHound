@@ -1,0 +1,36 @@
+{
+  "edge_type": "AZGlobalAdmin",
+  "description": "Principal holds (or can activate) the Global Administrator role - full control of the Entra tenant.",
+  "static_noise_score": 68,
+  "telemetry": [
+    {
+      "source": "entra_audit",
+      "event_id": null,
+      "detail": "Entra ID audit log: 'Add member to role / Add eligible member to role (Global Administrator)' (directory logging is default-on).",
+      "reliability": "high",
+      "default_enabled": true,
+      "activity": [
+        "Add member to role",
+        "Add eligible member to role"
+      ],
+      "category": "RoleManagement"
+    },
+    {
+      "source": "entra_id_protection",
+      "event_id": null,
+      "detail": "PIM activation and privileged role use are commonly alerted by ID Protection / Sentinel.",
+      "reliability": "high"
+    },
+    {
+      "source": "mdca",
+      "event_id": null,
+      "product_class": "MDCA",
+      "detail": "Activity from privileged role; anomaly policies flag unusual GA use.",
+      "reliability": "high"
+    }
+  ],
+  "mitre_technique": "T1098.003",
+  "prerequisite_privilege": "Global Administrator role assignment (active or PIM-eligible)",
+  "abuse_primitive": "Activate GA (PIM) or use standing GA to grant roles, add app credentials, or reset any password.",
+  "notes": "Role membership changes are always audited and Global Admin is one of the most-monitored roles; near-certain in a defended tenant, moderate where nobody watches the audit log."
+}

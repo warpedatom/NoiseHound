@@ -1,0 +1,66 @@
+{
+  "_comment": "Example Kibana GET /api/detection_engine/rules/_find response, trimmed to the fields noisehound-elastic reads (name, enabled, severity, query, threat). Feed it offline with: noisehound-elastic --rules-json samples/elastic_rules.example.json",
+  "page": 1,
+  "perPage": 20,
+  "total": 5,
+  "data": [
+    {
+      "name": "Active Directory Replication from Non-DC (DCSync)",
+      "enabled": true,
+      "severity": "high",
+      "type": "query",
+      "language": "kuery",
+      "query": "event.code:4662 and winlog.event_data.Properties:*1131f6ad*",
+      "threat": [
+        {"framework": "MITRE ATT&CK",
+         "technique": [{"id": "T1003", "subtechnique": [{"id": "T1003.006"}]}]}
+      ]
+    },
+    {
+      "name": "Kerberoasting - Service Ticket Requests (RC4)",
+      "enabled": true,
+      "severity": "medium",
+      "type": "query",
+      "language": "kuery",
+      "query": "event.code:4769 and winlog.event_data.TicketEncryptionType:\"0x17\"",
+      "threat": [
+        {"framework": "MITRE ATT&CK",
+         "technique": [{"id": "T1558", "subtechnique": [{"id": "T1558.003"}]}]}
+      ]
+    },
+    {
+      "name": "AS-REP Roasting via Preauth-Disabled Accounts",
+      "enabled": true,
+      "severity": "high",
+      "type": "eql",
+      "language": "eql",
+      "query": "any where true",
+      "threat": [
+        {"framework": "MITRE ATT&CK",
+         "technique": [{"id": "T1558", "subtechnique": [{"id": "T1558.004"}]}]}
+      ]
+    },
+    {
+      "name": "AD CS - Certificate Request with SAN (ESC1) [DISABLED]",
+      "enabled": false,
+      "severity": "critical",
+      "type": "query",
+      "language": "kuery",
+      "query": "event.code:(4886 or 4887)",
+      "threat": [
+        {"framework": "MITRE ATT&CK", "technique": [{"id": "T1649"}]}
+      ]
+    },
+    {
+      "name": "Suspicious Outbound Network Connection",
+      "enabled": true,
+      "severity": "low",
+      "type": "query",
+      "language": "kuery",
+      "query": "event.category:network and destination.port:4444",
+      "threat": [
+        {"framework": "MITRE ATT&CK", "technique": [{"id": "T1071"}]}
+      ]
+    }
+  ]
+}

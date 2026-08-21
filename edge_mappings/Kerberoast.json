@@ -2,6 +2,7 @@
   "edge_type": "Kerberoast",
   "description": "Request a service ticket for an account's SPN and crack it offline to recover the account's password.",
   "static_noise_score": 30,
+  "tool_signature_score": 61,
   "telemetry": [
     {
       "source": "windows_security",
@@ -15,6 +16,14 @@
       "product_class": "generic",
       "detail": "Requesting many SPNs at once (mass roast) is a strong signal; a single targeted request blends in.",
       "reliability": "low"
+    },
+    {
+      "source": "wdac",
+      "event_id": 3077,
+      "product_class": "WDAC",
+      "detail": "WDAC / App Control blocks the unsigned Rubeus / other .NET roasting tools binary on-host (enforce 3077; audit-only logs 3076). Evaded by native LOLBin or remote (Impacket) execution - see the tooling axis.",
+      "reliability": "high",
+      "default_enabled": false
     }
   ],
   "mitre_technique": "T1558.003",

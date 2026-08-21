@@ -1,0 +1,29 @@
+{
+  "edge_type": "AZAddMembers",
+  "description": "Can add members to a group - dangerous when the group is role-assignable or grants access.",
+  "static_noise_score": 46,
+  "telemetry": [
+    {
+      "source": "entra_audit",
+      "event_id": null,
+      "detail": "Entra ID audit log: 'Add member to group' (directory logging is default-on).",
+      "reliability": "high",
+      "default_enabled": true,
+      "activity": [
+        "Add member to group"
+      ],
+      "category": "GroupManagement"
+    },
+    {
+      "source": "mdca",
+      "event_id": null,
+      "product_class": "MDCA",
+      "detail": "Addition to a privileged/role-assignable group may be flagged by anomaly policies.",
+      "reliability": "medium"
+    }
+  ],
+  "mitre_technique": "T1098",
+  "prerequisite_privilege": "Owner of the group, or a role permitting group membership changes",
+  "abuse_primitive": "Add a controlled principal to a role-assignable or access-granting group.",
+  "notes": "Group membership change is audited; noise rises when the group is privileged."
+}

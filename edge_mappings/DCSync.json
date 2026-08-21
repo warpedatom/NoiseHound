@@ -2,6 +2,7 @@
   "edge_type": "DCSync",
   "description": "Replication rights abuse to pull password hashes via MS-DRSR.",
   "static_noise_score": 85,
+  "tool_agnostic_score": 59,
   "telemetry": [
     {
       "source": "windows_security",
@@ -26,6 +27,14 @@
       "product_class": "MDI",
       "detail": "Many EDRs and MDI flag non-DC hosts issuing DRSGetNCChanges calls - high fidelity.",
       "reliability": "high"
+    },
+    {
+      "source": "wdac",
+      "event_id": 3077,
+      "product_class": "WDAC",
+      "detail": "WDAC / App Control blocks the unsigned mimikatz (on-host) binary on-host (enforce 3077; audit-only logs 3076). Evaded by native LOLBin or remote (Impacket) execution - see the tooling axis.",
+      "reliability": "high",
+      "default_enabled": false
     }
   ],
   "mitre_technique": "T1003.006",

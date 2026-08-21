@@ -37,39 +37,77 @@ class AnnotationStats:
         return self.known_edges / self.total_edges
 
 
+def _tooling_base(entry: dict | None, static: float, tooling: str | None) -> float:
+    """Pick the base score for the declared tradecraft.
+
+    The corpus static score is the tooling-neutral baseline. ``remote``/``native``
+    tradecraft leaves no signatured binary on the monitored host, so an edge with a
+    ``tool_agnostic_score`` drops to that quieter floor; ``onhost`` off-the-shelf
+    tooling (mimikatz/Rubeus) trips EDR AV signatures, so an edge with a
+    ``tool_signature_score`` rises to that louder ceiling. The environment posture is
+    still applied on top of this base, so tool-agnostic audit/identity detection (4662,
+    MDI, 4769) is never lost - tooling only moves the *endpoint-signature* component.
+    """
+    if not entry or not tooling:
+        return static
+    if tooling in ("remote", "native") and entry.get("tool_agnostic_score") is not None:
+        return float(entry["tool_agnostic_score"])
+    if tooling == "onhost" and entry.get("tool_signature_score") is not None:
+        return float(entry["tool_signature_score"])
+    return static
+
+
 def annotate(
     g: nx.DiGraph,
     corpus: Corpus,
     live_scores: dict | None = None,
     environment: EnvironmentProfile | None = None,
+    tooling: str | None = None,
 ) -> AnnotationStats:
     """Annotate every edge in-place; return coverage statistics.
 
     ``live_scores`` optionally maps ``(src, dst, edge_type)`` -> score to
     override everything (the Phase 2 live-validation hook). ``environment``
-    optionally adjusts static scores for the declared target posture.
+    optionally adjusts static scores for the declared target posture. ``tooling``
+    (``onhost`` | ``remote`` | ``native``) selects the operator's tradecraft, moving
+    the endpoint-signature component of tool-sensitive edges.
     """
     live_scores = live_scores or {}
+    # Case-insensitive view of edge-type-keyed live scores (tuple keys excluded),
+    # so a --live-scores by_edge_type entry matches regardless of key casing.
+    _et_live = {k.lower(): v for k, v in live_scores.items() if isinstance(k, str)}
     total = known = unknown = 0
     unknown_types: set = set()
 
     for src, dst, data in g.edges(data=True):
         candidate_types = data.get("edge_types") or [data.get("edge_type")]
 
+        # Pick the quietest candidate right by its *tooling-adjusted* base, so
+        # --tooling can prefer a right that is louder statically but quieter under
+        # the declared tradecraft. Without --tooling the base equals the static
+        # score, so selection is unchanged.
         best_type = None
         best_static = None
+        best_base = None
         best_known = False
         for et in candidate_types:
             static, is_known = corpus.static_score(et)
-            if best_static is None or static < best_static:
+            cand_base = _tooling_base(corpus.get(et), static, tooling)
+            if best_base is None or cand_base < best_base:
+                best_base = cand_base
                 best_static = static
                 best_type = et
                 best_known = is_known
 
         entry = corpus.get(best_type)
-        env_score = adjust_score(best_static, entry, best_type, environment)
+        env_score = adjust_score(best_base, entry, best_type, environment)
 
+        # An edge-type-level live override applies as a fallback when there is no
+        # (src, dst, edge_type) specific one - so a --live-scores file can key by
+        # edge type alone.
         live = live_scores.get((src, dst, best_type))
+        if live is None:
+            live = _et_live.get(best_type.lower())
         effective = float(live) if live is not None else float(env_score)
 
         data["edge_type"] = best_type

@@ -43,6 +43,71 @@ Hyper-V lab - a capture-path limitation, see the roadmap - but its posture side 
   caught only by the audit / network / identity tier.
 - So the **audit + identity tiers are the durable, tool-agnostic half** of the calibration; the
   EDR-signature tier is the "how loud is the default toolkit" half.
-- **Roadmap:** a selectable *tooling-profile axis* (`off-the-shelf-on-host` vs `remote-impacket` vs
-  `native-obfuscated`) so a profile reflects the spread, not just the loudest tool. Until then, read
-  the EDR numbers as the off-the-shelf-on-host baseline.
+## The `--tooling` flag
+
+The tooling axis is selectable at query time:
+
+```bash
+noisehound -i export.zip -s user -o "Domain Admins" --tooling onhost   # off-the-shelf, on host (loud)
+noisehound -i export.zip -s user -o "Domain Admins" --tooling remote   # Impacket from Linux (quiet endpoint)
+noisehound -i export.zip -s user -o "Domain Admins" --tooling native   # native/LOLBAS (quiet AV signature)
+```
+
+How it works: the corpus static score is the tooling-neutral baseline. Tool-sensitive
+edges carry an optional `tool_agnostic_score` (the quiet floor when no signatured
+binary runs on the host) and/or `tool_signature_score` (the louder ceiling when
+off-the-shelf tooling does). `--tooling` picks the base; today, for example:
+
+| Edge | neutral | `--tooling remote` | `--tooling onhost` |
+|------|--------:|-------------------:|-------------------:|
+| DCSync (static assumes mimikatz) | 85 | **59** (Impacket) | 85 |
+| Kerberoast (static = technique baseline) | 30 | 30 | **61** (Rubeus) |
+
+**Crucially, tooling only moves the *endpoint-signature* component.** The environment
+posture is applied on top of the tooling base, so tool-agnostic detection is never
+lost: remote DCSync still rises to 90 under a **posture-declared**
+`object_auditing_4662` profile (MDI / 4662 catch the replication regardless of the
+tool). That is the whole point - remote/native tradecraft dodges the EDR AV
+signature, not the AD/identity audit trail. A *measured* profile can still score
+lower than the floor when it hard-codes a lab-observed value (e.g. the shipped
+`profiles/vulnad-hyperv-audit.json` measures DCSync at 59) - measured always
+overrides the theoretical floor, by design.
+
+Coverage today is the well-evidenced signatured edges (DCSync, Kerberoast, ASREPRoast,
+DumpSMSAPassword); more edges gain `tool_*_score` values as per-edge tooling
+calibration lands.
+
+## WDAC / App Control as a tool-signature source
+
+The tooling axis has a matching *detection* source: **Windows Defender Application
+Control (WDAC / App Control)**. When an off-the-shelf offensive binary runs on-host,
+WDAC logs it in the **CodeIntegrity** operational log - **3076** in audit mode (would
+have blocked) and **3077** in enforce mode (blocked). Like the EDR signature, WDAC is
+blind to native LOLBin tradecraft and to remote execution (Impacket from another
+host), so it is precisely a `--tooling onhost` detector: it catches the loud case and
+misses the quiet one.
+
+Modelled on the on-host-tool edges (`Kerberoast`/`ASREPRoast` → Rubeus,
+`DumpSMSAPassword`/`DCSync` → mimikatz, `AddKeyCredentialLink` → Whisker, `ADCSESC1` →
+Certify/Certipy) as a `wdac` telemetry entry with `default_enabled: false` - WDAC is
+opt-in, so `--defensive` surfaces "enforce WDAC / App Control" as a closable gap on
+exactly those edges and not on tool-agnostic ones.
+
+**Measured (2026-08-20) - `profiles/vulnad-hyperv-wdac.json`.** On the Hyper-V DC we
+deployed WDAC in **audit mode** (DefaultWindows_Audit template, enforcement status 1)
+and ran the tools on-host from an AV-excluded folder. Each unsigned binary raised a
+**CodeIntegrity 3076** "would-block" audit event:
+
+| Tool | 3076 | Edges realized | Calibrated (WDAC tier) |
+|------|-----:|----------------|-----------------------:|
+| `Rubeus.exe`   | 1 | Kerberoast, ASREPRoast   | 44 |
+| `Whisker.exe`  | 1 | AddKeyCredentialLink     | 48 |
+| `mimikatz.exe` | 1 | DCSync, DumpSMSAPassword | 80 / 40 |
+| `Certify.exe`  | 1 | ADCSESC1                 | 50 |
+
+Confirms the axis directly: WDAC catches the **on-host binary**, so those edges are
+loud with off-the-shelf tooling - and it saw **nothing** from the parallel remote
+campaign (Impacket/bloodyAD from Kali) against the same DC. `mimikatz.exe`
+(DCSync/DumpSMSAPassword) and `Certify.exe` (ADCS ESC1) were re-measured on-host
+2026-08-21 - each raised a 3076 at image load, so **all six** modelled `wdac` edges
+are now measured. Raw: `_lab_prep/lab_detections_wdac.json`.

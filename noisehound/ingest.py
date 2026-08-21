@@ -43,6 +43,7 @@ from .adcs import synthesize_adcs
 # few in number, so keeping their props does not bloat large graphs.
 _PROPS_RETAINED_TYPES = {
     "CertTemplate", "EnterpriseCA", "RootCA", "NTAuthStore", "AIACA", "Domain",
+    "IssuancePolicy",
 }
 
 def _node_label(props: dict, oid: str) -> str:
@@ -109,6 +110,15 @@ def _parse_bh_node(g: nx.DiGraph, node: dict, node_type: str) -> None:
             g.nodes[oid]["roastable_spn"] = True
         if lp.get("dontreqpreauth"):
             g.nodes[oid]["roastable_asrep"] = True
+    # ESC13: an issuance-policy OID object may be linked to a group
+    # (msDS-OIDToGroupLink); enrolling a template that asserts the OID then grants
+    # membership in that group. Retain the linked group so synthesis can use it.
+    if node_type == "IssuancePolicy":
+        gl = node.get("GroupLink") or {}
+        gsid = gl.get("ObjectIdentifier") if isinstance(gl, dict) else gl
+        if gsid:
+            _add_node(g, gsid, gl.get("ObjectType", "Group") if isinstance(gl, dict) else "Group")
+            g.nodes[oid]["oid_group_link"] = gsid
     if node_type == "EnterpriseCA":
         enabled = node.get("EnabledCertTemplates") or []
         ids = []
@@ -168,6 +178,28 @@ def _parse_bh_node(g: nx.DiGraph, node: dict, node_type: str) -> None:
     ):
         coll = node.get(coll_key) or {}
         for r in coll.get("Results", []) or []:
+            pid = r.get("ObjectIdentifier")
+            if pid:
+                _add_node(g, pid, r.get("ObjectType", "Base"))
+                _add_edge(g, pid, oid, edge)
+
+    # Modern SharpHound (v2+/BloodHound CE) reports local-group membership under
+    # a single LocalGroups list keyed by each local group's SID; the trailing RID
+    # identifies the group. The legacy per-collection arrays above are gone from
+    # v2.13 output, so without this NoiseHound silently misses AdminTo/CanRDP/etc.
+    # on every current collection. Both formats are read for back-compat.
+    _LOCALGROUP_EDGE = {
+        "544": "AdminTo",       # Administrators
+        "555": "CanRDP",        # Remote Desktop Users
+        "562": "ExecuteDCOM",   # Distributed COM Users
+        "580": "CanPSRemote",   # Remote Management Users (WinRM)
+    }
+    for lg in node.get("LocalGroups", []) or []:
+        rid = str(lg.get("ObjectIdentifier", "")).rsplit("-", 1)[-1]
+        edge = _LOCALGROUP_EDGE.get(rid)
+        if not edge:
+            continue
+        for r in lg.get("Results", []) or []:
             pid = r.get("ObjectIdentifier")
             if pid:
                 _add_node(g, pid, r.get("ObjectType", "Base"))
@@ -238,6 +270,7 @@ _BH_TYPE_BY_META = {
     "rootcas": "RootCA",
     "ntauthstores": "NTAuthStore",
     "aiacas": "AIACA",
+    "issuancepolicies": "IssuancePolicy",
 }
 
 
@@ -271,8 +304,14 @@ def _looks_normalised(doc: Any) -> bool:
 
 
 def _ingest_doc(g: nx.DiGraph, doc: Any) -> None:
+    # Lazy import: azure_ingest imports _add_edge/_add_node back from this
+    # module, so importing it at module level here would be circular.
+    from .azure_ingest import is_azurehound_doc, parse_azurehound_doc
+
     if _looks_normalised(doc):
         _parse_normalised(g, doc)
+    elif is_azurehound_doc(doc):
+        parse_azurehound_doc(g, doc)
     elif isinstance(doc, dict) and "data" in doc:
         _parse_bh_file(g, doc)
     else:
@@ -331,6 +370,10 @@ def load_graph(
     g.graph["adcs_edges_synthesized"] = synthesize_adcs(g)
     # Synthesise Kerberoast / AS-REP edges to roastable accounts.
     g.graph["roasting_edges_synthesized"] = synthesize_roasting(g)
+    # Synthesise the Azure post-processed AZ* edges (see azure_synthesis.py).
+    # No-op when the export contains no AZRole nodes.
+    from .azure_synthesis import synthesize_azure
+    g.graph["azure_edges_synthesized"] = synthesize_azure(g)
     return g
 
 

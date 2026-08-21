@@ -1,0 +1,275 @@
+{
+ "meta": {
+  "methods": 0,
+  "type": "azure",
+  "count": 14,
+  "version": 6
+ },
+ "data": [
+  {
+   "kind": "AZTenant",
+   "data": {
+    "countryCode": "US",
+    "defaultDomain": "DreadHost.onmicrosoft.com",
+    "displayName": "DREAD HOST",
+    "domains": [
+     "DreadHost.onmicrosoft.com"
+    ],
+    "id": "/TENANTS/7054E552-58F0-4B46-8185-876A3EB7DB62",
+    "tenantId": "7054E552-58F0-4B46-8185-876A3EB7DB62",
+    "tenantType": "AAD",
+    "collected": true
+   }
+  },
+  {
+   "kind": "AZUser",
+   "data": {
+    "id": "B92D0E95-AB16-4B20-8548-E536CBBD0A2A",
+    "accountEnabled": true,
+    "createdDateTime": "2026-08-04T19:11:55Z",
+    "displayName": "TEST USER",
+    "employeeOrgData": {},
+    "lastPasswordChangeDateTime": "2026-08-04T19:20:00Z",
+    "mailboxSettings": {
+     "automaticRepliesSetting": {
+      "scheduledEndDateTime": {},
+      "scheduledStartDateTime": {}
+     },
+     "language": {},
+     "workingHours": {
+      "timeZoneBase": {}
+     }
+    },
+    "onPremisesExtensionAttributes": {},
+    "passwordProfile": {},
+    "signInActivity": {},
+    "userPrincipalName": "test.user@DreadHost.onmicrosoft.com",
+    "userType": "Member",
+    "tenantId": "7054E552-58F0-4B46-8185-876A3EB7DB62",
+    "tenantName": "DREAD HOST"
+   }
+  },
+  {
+   "kind": "AZRole",
+   "data": {
+    "id": "62E90394-69F5-4237-9190-012177145E10",
+    "description": "Can manage all aspects of Microsoft Entra ID and Microsoft services that use Microsoft Entra identities.",
+    "displayName": "GLOBAL ADMINISTRATOR",
+    "isBuiltIn": true,
+    "isEnabled": true,
+    "resourceScopes": [
+     "/"
+    ],
+    "templateId": "62e90394-69f5-4237-9190-012177145e10",
+    "version": "1",
+    "tenantId": "7054E552-58F0-4B46-8185-876A3EB7DB62",
+    "tenantName": "DREAD HOST"
+   }
+  },
+  {
+   "kind": "AZRole",
+   "data": {
+    "id": "10DAE51F-B6AF-4016-8D66-8C2A99B929B3",
+    "description": "Default role for guest users. Can read a limited set of directory information.",
+    "displayName": "GUEST USER",
+    "isBuiltIn": true,
+    "isEnabled": true,
+    "resourceScopes": [
+     "/"
+    ],
+    "templateId": "10dae51f-b6af-4016-8d66-8c2a99b929b3",
+    "version": "1",
+    "tenantId": "7054E552-58F0-4B46-8185-876A3EB7DB62",
+    "tenantName": "DREAD HOST"
+   }
+  },
+  {
+   "kind": "AZRoleAssignment",
+   "data": {
+    "roleAssignments": [
+     {
+      "id": "lAPpYvVpN0KRkAEhdxReEJUOLbkWqyBLhUjlNsu9Cio-1",
+      "roleDefinitionId": "62E90394-69F5-4237-9190-012177145E10",
+      "principalId": "B92D0E95-AB16-4B20-8548-E536CBBD0A2A",
+      "directoryScopeId": "/",
+      "roleDefinition": {
+       "id": ""
+      },
+      "directoryScope": {
+       "id": "",
+       "api": {},
+       "info": {},
+       "optionalClaims": {},
+       "parentalControlSettings": {},
+       "publicClient": {},
+       "spa": {},
+       "verifiedPublisher": {},
+       "web": {
+        "implicitGrantSettings": {}
+       }
+      },
+      "appScope": {
+       "id": ""
+      }
+     }
+    ],
+    "roleDefinitionId": "62E90394-69F5-4237-9190-012177145E10",
+    "tenantId": "7054E552-58F0-4B46-8185-876A3EB7DB62"
+   }
+  },
+  {
+   "kind": "AZServicePrincipal",
+   "data": {
+    "id": "00C94C4E-E587-44C3-A401-AC2098ADAA20",
+    "accountEnabled": true,
+    "appDisplayName": "Microsoft PrivateStore",
+    "appId": "D360971A-94DE-4558-B764-DFD218A8F5CE",
+    "appOwnerOrganizationId": "F8CDEF31-A31E-4B4A-93E4-5F571E91255A",
+    "displayName": "MICROSOFT PRIVATESTORE",
+    "info": {},
+    "samlSingleSignOnSettings": {},
+    "servicePrincipalNames": [
+     "d360971a-94de-4558-b764-dfd218a8f5ce"
+    ],
+    "servicePrincipalType": "Application",
+    "signInAudience": "AzureADMultipleOrgs",
+    "verifiedPublisher": {
+     "displayName": "Microsoft Corporation",
+     "verifiedPublisherId": "5206095",
+     "addedDateTime": "2026-05-28T11:34:06Z"
+    },
+    "tenantId": "7054E552-58F0-4B46-8185-876A3EB7DB62",
+    "tenantName": "DREAD HOST"
+   }
+  },
+  {
+   "kind": "AZServicePrincipalOwner",
+   "data": {
+    "owners": null,
+    "servicePrincipalId": "05407F2D-5178-4972-9F80-1AA47015DC24"
+   }
+  },
+  {
+   "kind": "AZApp",
+   "data": {
+    "id": "46FF7B19-78EC-4889-BCF6-CE0999B9AE20",
+    "api": {},
+    "appId": "854FBCDB-0B0C-4CE0-813F-45BCD9EE9714",
+    "createdDateTime": "2026-08-16T23:40:12Z",
+    "displayName": "AZUREHOUND-RECON",
+    "info": {},
+    "optionalClaims": {},
+    "parentalControlSettings": {
+     "legalAgeGroupRule": "Allow"
+    },
+    "passwordCredentials": [
+     {
+      "displayName": "azurehound-recon",
+      "endDateTime": "2027-02-13T00:48:00.85Z",
+      "hint": "vjS",
+      "keyId": "03703a3f-961e-4214-b73a-cc964a06072b",
+      "startDateTime": "2026-08-16T23:48:00.85Z"
+     }
+    ],
+    "publicClient": {},
+    "publisherDomain": "DreadHost.onmicrosoft.com",
+    "requiredResourceAccess": [
+     {
+      "resourceAccess": [
+       {
+        "id": "e1fe6dd8-ba31-4d61-89e7-88639da4683d",
+        "type": "Scope"
+       },
+       {
+        "id": "7ab1d382-f21e-4acd-a863-ba3e13f7da61",
+        "type": "Role"
+       }
+      ],
+      "resourceAppId": "00000003-0000-0000-c000-000000000000"
+     }
+    ],
+    "signInAudience": "AzureADMyOrg",
+    "spa": {},
+    "verifiedPublisher": {},
+    "web": {
+     "implicitGrantSettings": {}
+    },
+    "tenantId": "7054E552-58F0-4B46-8185-876A3EB7DB62",
+    "tenantName": "DREAD HOST"
+   }
+  },
+  {
+   "kind": "AZAppOwner",
+   "data": {
+    "owners": null,
+    "appId": "854FBCDB-0B0C-4CE0-813F-45BCD9EE9714"
+   }
+  },
+  {
+   "kind": "AZAppRoleAssignment",
+   "data": {
+    "appId": "00000003-0000-0000-c000-000000000000",
+    "appRoleId": "7ab1d382-f21e-4acd-a863-ba3e13f7da61",
+    "createdDateTime": "2026-08-17T03:44:42.553644Z",
+    "id": "M2jbV05G60Ky-FqtdrN1xVBU-TjeoYZJvLFYEemgQY4",
+    "principalDisplayName": "azurehound-recon",
+    "principalId": "57DB6833-464E-42EB-B2F8-5AAD76B375C5",
+    "principalType": "ServicePrincipal",
+    "resourceDisplayName": "Microsoft Graph",
+    "resourceId": "A2901ACA-B3BF-47ED-A4BD-1A9D52F65956",
+    "tenantId": "7054E552-58F0-4B46-8185-876A3EB7DB62"
+   }
+  },
+  {
+   "kind": "AZSubscription",
+   "data": {
+    "id": "/SUBSCRIPTIONS/ED9AFD78-D850-4F5F-A271-EE121C96833A",
+    "authorizationSource": "RoleBased",
+    "displayName": "AZUREHOUND-RECON",
+    "state": "Enabled",
+    "subscriptionId": "ED9AFD78-D850-4F5F-A271-EE121C96833A",
+    "subscriptionPolicies": {
+     "locationPlacementId": "Public_2014-09-01",
+     "quotaId": "PayAsYouGo_2014-09-01",
+     "spendingLimit": "Off"
+    },
+    "tenantId": "7054E552-58F0-4B46-8185-876A3EB7DB62"
+   }
+  },
+  {
+   "kind": "AZSubscriptionOwner",
+   "data": {
+    "owners": [
+     {
+      "owner": {
+       "id": "/subscriptions/ed9afd78-d850-4f5f-a271-ee121c96833a/providers/Microsoft.Authorization/roleAssignments/d7e730f2-cfcf-4a73-ae63-779edbd1f2b6",
+       "name": "d7e730f2-cfcf-4a73-ae63-779edbd1f2b6",
+       "type": "Microsoft.Authorization/roleAssignments",
+       "properties": {
+        "principalId": "B92D0E95-AB16-4B20-8548-E536CBBD0A2A",
+        "roleDefinitionId": "/subscriptions/ed9afd78-d850-4f5f-a271-ee121c96833a/providers/Microsoft.Authorization/roleDefinitions/8e3af657-a8ff-443c-a75c-2fe8c4bcb635",
+        "scope": "/SUBSCRIPTIONS/ED9AFD78-D850-4F5F-A271-EE121C96833A"
+       }
+      },
+      "subscriptionId": "/SUBSCRIPTIONS/ED9AFD78-D850-4F5F-A271-EE121C96833A"
+     }
+    ],
+    "subscriptionId": "/SUBSCRIPTIONS/ED9AFD78-D850-4F5F-A271-EE121C96833A"
+   }
+  },
+  {
+   "kind": "AZSubscriptionContributor",
+   "data": {
+    "contributors": null,
+    "subscriptionId": "/SUBSCRIPTIONS/ED9AFD78-D850-4F5F-A271-EE121C96833A"
+   }
+  },
+  {
+   "kind": "AZSubscriptionUserAccessAdmin",
+   "data": {
+    "userAccessAdmins": null,
+    "subscriptionId": "/SUBSCRIPTIONS/ED9AFD78-D850-4F5F-A271-EE121C96833A"
+   }
+  }
+ ]
+}

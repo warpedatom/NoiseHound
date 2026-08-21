@@ -22,6 +22,7 @@ from noisehound.solver import score_path, solve
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SAMPLE = os.path.join(ROOT, "samples", "sample_graph.json")
+AZURE = os.path.join(ROOT, "samples", "sample_azure.json")
 
 
 def test_corpus_loads_and_validates():
@@ -111,6 +112,40 @@ def test_unknown_edge_marks_path():
     assert "SyncedToEntraUser" in stats.unknown_types
     assert stats.unknown_edges >= 1
     assert stats.coverage < 1.0
+
+
+def test_corpus_has_azure_edges():
+    corpus = load_corpus()
+    types = {e["edge_type"] for e in corpus}
+    for az in ("AZGlobalAdmin", "AZAddSecret", "AZUserAccessAdministrator", "AZVMContributor"):
+        assert az in types, "missing Azure edge %s" % az
+    # Azure edges carry Entra-native telemetry that the schema accepts.
+    add_secret = next(e for e in corpus if e["edge_type"] == "AZAddSecret")
+    assert any(t["source"] == "entra_audit" for t in add_secret["telemetry"])
+    # Real corpus scores (not the fail-safe default); passive rights score low.
+    assert corpus.static_score("AZAddSecret") == (55.0, True)
+    assert corpus.static_score("AZOwns")[0] < 45
+    assert corpus.static_score("AZHasRole")[0] < 45
+
+
+def test_azure_graph_scores_and_ranks():
+    # The synthetic Entra graph is fully covered, and the quietest route to
+    # Global Administrator hops through group ownership, not the VM or reset routes.
+    g = load_graph(AZURE)
+    stats = annotate(g, load_corpus())
+    assert stats.coverage == 1.0
+    paths = solve(g, find_node(g, "analyst@contoso.onmicrosoft.com"),
+                  find_node(g, "Global Administrator"), k=5)
+    assert paths
+    # Quietest route hops through an owned, over-privileged service principal
+    # (AZOwns -> AZHasRole), beating the louder secret/reset/VM routes.
+    top_edges = [e["edge_type"] for e in paths[0].edges]
+    assert "AZOwns" in top_edges and "AZHasRole" in top_edges
+    assert round(paths[0].path_score, 1) == 39.6
+    assert [p.path_score for p in paths] == sorted(p.path_score for p in paths)
+    # AZAddSecret is corpus-scored (55), not the fail-safe default, and ranks louder.
+    secret = [p for p in paths if any(e["edge_type"] == "AZAddSecret" for e in p.edges)]
+    assert secret and secret[0].path_score > paths[0].path_score
 
 
 def _annotated(edges, nodes=None):
@@ -284,6 +319,73 @@ def test_adcs_manager_approval_blocks_esc1():
     assert not g.has_edge(dsid + "-1200", dsid + "-512")
 
 
+def test_adcs_esc9_10_13_synthesis():
+    dsid = "S-1-5-21-9"
+    da = dsid + "-512"
+    grp13 = dsid + "-1400"           # the OID-linked privileged group (ESC13 target)
+    oid13 = "1.3.6.1.4.1.311.21.8.777.13"
+    export = {
+        "domains.json": {"meta": {"type": "domains"}, "data": [
+            {"ObjectIdentifier": dsid, "Properties": {"name": "CORP.LOCAL", "domainsid": dsid}}]},
+        "groups.json": {"meta": {"type": "groups"}, "data": [
+            {"ObjectIdentifier": da, "Properties": {"name": "DOMAIN ADMINS@CORP.LOCAL"}, "Aces": []},
+            {"ObjectIdentifier": grp13, "Properties": {"name": "OID-LINKED-ADMINS@CORP.LOCAL"}, "Aces": []}]},
+        "users.json": {"meta": {"type": "users"}, "data": [
+            {"ObjectIdentifier": dsid + "-9001", "Properties": {"name": "U9@CORP.LOCAL"}, "Aces": []},
+            {"ObjectIdentifier": dsid + "-9002", "Properties": {"name": "U10@CORP.LOCAL"}, "Aces": []},
+            {"ObjectIdentifier": dsid + "-9003", "Properties": {"name": "U13@CORP.LOCAL"}, "Aces": []}]},
+        "certtemplates.json": {"meta": {"type": "certtemplates"}, "data": [
+            {"ObjectIdentifier": "T-ESC9",
+             "Properties": {"name": "ESC9-T@CORP.LOCAL", "domainsid": dsid,
+                            "authenticationenabled": True, "nosecurityextension": True,
+                            "requiresmanagerapproval": False, "authorizedsignatures": 0,
+                            "ekus": ["1.3.6.1.5.5.7.3.2"]},
+             "Aces": [{"PrincipalSID": dsid + "-9001", "PrincipalType": "User", "RightName": "Enroll"}]},
+            {"ObjectIdentifier": "T-ESC10",
+             "Properties": {"name": "ESC10-T@CORP.LOCAL", "domainsid": dsid,
+                            "authenticationenabled": True, "schannelauthenticationenabled": True,
+                            "requiresmanagerapproval": False, "authorizedsignatures": 0,
+                            "ekus": ["1.3.6.1.5.5.7.3.2"]},
+             "Aces": [{"PrincipalSID": dsid + "-9002", "PrincipalType": "User", "RightName": "Enroll"}]},
+            {"ObjectIdentifier": "T-ESC13",
+             "Properties": {"name": "ESC13-T@CORP.LOCAL", "domainsid": dsid,
+                            "authenticationenabled": True, "requiresmanagerapproval": False,
+                            "authorizedsignatures": 0, "ekus": ["1.3.6.1.5.5.7.3.2"],
+                            "issuancepolicies": [oid13]},
+             "Aces": [{"PrincipalSID": dsid + "-9003", "PrincipalType": "User", "RightName": "Enroll"}]}]},
+        "issuancepolicies.json": {"meta": {"type": "issuancepolicies"}, "data": [
+            {"ObjectIdentifier": "IP-13",
+             "Properties": {"name": "HIGHASSURANCE@CORP.LOCAL", "certtemplateoid": oid13},
+             "GroupLink": {"ObjectIdentifier": grp13, "ObjectType": "Group"}}]},
+        "enterprisecas.json": {"meta": {"type": "enterprisecas"}, "data": [
+            {"ObjectIdentifier": "CA-9", "Properties": {"name": "CORP-CA@CORP.LOCAL", "domainsid": dsid},
+             "Aces": [],
+             "EnabledCertTemplates": [{"ObjectIdentifier": "T-ESC9", "ObjectType": "CertTemplate"},
+                                      {"ObjectIdentifier": "T-ESC10", "ObjectType": "CertTemplate"},
+                                      {"ObjectIdentifier": "T-ESC13", "ObjectType": "CertTemplate"}]}]},
+    }
+    zpath = _bh_zip(export)
+    try:
+        g = load_graph(zpath)
+    finally:
+        os.remove(zpath)
+
+    # ESC9a (no-security-extension) and ESC10b (schannel) escalate to Domain Admins.
+    assert "ADCSESC9a" in g[dsid + "-9001"][da]["edge_types"]
+    assert "ADCSESC10b" in g[dsid + "-9002"][da]["edge_types"]
+    # ESC13 escalates to the OID-LINKED GROUP, not Domain Admins.
+    assert g.has_edge(dsid + "-9003", grp13)
+    assert "ADCSESC13" in g[dsid + "-9003"][grp13]["edge_types"]
+    assert not g.has_edge(dsid + "-9003", da)
+    # ESC10a has no template-level signal and must never be synthesised.
+    all_esc = {e for _, _, d in g.edges(data=True) for e in d.get("edge_types", [])}
+    assert "ADCSESC10a" not in all_esc
+
+    # The new ESC edges score and route like the others.
+    annotate(g, load_corpus())
+    assert g[dsid + "-9001"][da]["effective_noise_score"] > 0
+
+
 def test_solver_scales_to_a_few_thousand_nodes():
     # Layered DAG, ~2000 nodes, each layer fully connected to the next by a low
     # branching factor. Confirms the solver returns promptly at scale.
@@ -385,6 +487,88 @@ def test_calibration_end_to_end_and_roundtrip():
     assert g["P"]["DOM"]["effective_noise_score"] == profile_dict["adjustments"]["DCSync"]
 
 
+def test_azure_edges_carry_entra_activity_signatures():
+    # The measured Azure tier matches audit records by the activity signatures now
+    # on the corpus. Abuse edges that write to the directory must carry them;
+    # holding-only / resource-plane edges intentionally do not.
+    from noisehound.entra import edge_signatures
+    sigs = edge_signatures(load_corpus())
+    assert "add member to role" in sigs["AZGlobalAdmin"]["activity"]  # stored lowercased
+    assert "AZAddSecret" in sigs and "AZResetPassword" in sigs
+    # AZHasRole holds a role (logs nothing) and AZVMContributor is resource-plane;
+    # neither is directory-audit measurable, so no signature.
+    assert "AZHasRole" not in sigs
+    assert "AZVMContributor" not in sigs
+
+
+def test_entra_counts_audit_hits_into_observations():
+    from noisehound.entra import build_observations, edge_signatures, _records, _load
+    sigs = edge_signatures(load_corpus())
+    audit = _records(_load(os.path.join(ROOT, "samples", "entra_audit.example.json")))
+    manifest = _load(os.path.join(ROOT, "samples", "entra_runs.example.json"))
+    det = build_observations(manifest, audit, sigs)
+    obs = {o["edge_type"]: o for o in det["observations"]}
+    # GlobalAdmin: two matching role-add records in-window, but 1 run -> capped at runs.
+    assert obs["AZGlobalAdmin"]["detections"] == 1
+    # ResetPassword: 2 runs, only 1 matching audit record -> partial detection rate.
+    assert obs["AZResetPassword"]["runs"] == 2
+    assert obs["AZResetPassword"]["detections"] == 1
+    # AZHasRole has no audit signature -> reported unmeasurable, not scored.
+    assert "AZHasRole" in det["_unmeasurable"]
+    assert "AZHasRole" not in obs
+
+
+def test_entra_window_excludes_out_of_range_records():
+    from noisehound.entra import build_observations, edge_signatures, _records, _load
+    sigs = edge_signatures(load_corpus())
+    audit = _records(_load(os.path.join(ROOT, "samples", "entra_audit.example.json")))
+    # A window that ends before any record -> zero detections for a real edge.
+    manifest = {"environment": "t", "observations": [
+        {"edge_type": "AZAddMembers", "runs": 1,
+         "start": "2020-01-01T00:00:00Z", "end": "2020-01-01T01:00:00Z"}]}
+    det = build_observations(manifest, audit, sigs)
+    assert det["observations"][0]["detections"] == 0
+
+
+def test_entra_profile_calibrates_and_roundtrips():
+    from noisehound.entra import build_observations, edge_signatures, _records, _load
+    from noisehound.calibrate import calibrate
+    from noisehound.environment import EnvironmentProfile
+    sigs = edge_signatures(load_corpus())
+    audit = _records(_load(os.path.join(ROOT, "samples", "entra_audit.example.json")))
+    manifest = _load(os.path.join(ROOT, "samples", "entra_runs.example.json"))
+    det = build_observations(manifest, audit, sigs)
+    profile, records = calibrate(det, load_corpus())
+    assert set(profile["adjustments"]) == {"AZGlobalAdmin", "AZAddMembers",
+                                           "AZAddSecret", "AZResetPassword"}
+    prof = EnvironmentProfile.from_dict(profile)
+    g = _annotated([("P", "APP", "AZAddSecret")])
+    annotate(g, load_corpus(), environment=prof)
+    assert g["P"]["APP"]["effective_noise_score"] == profile["adjustments"]["AZAddSecret"]
+
+
+def test_wdac_is_a_tool_signature_source_on_tool_edges():
+    # WDAC / App Control is a tool-signature telemetry source: it fires on
+    # off-the-shelf tool binaries and is blind to native/remote tradecraft. It
+    # must be an accepted source, sit on the tool-abused edges, drive a defensive
+    # recommendation, and NOT be miscredited to edges with no tool binary.
+    from noisehound.schema import VALID_SOURCES
+    from noisehound.defend import controls_for_edge
+    assert "wdac" in VALID_SOURCES
+    corpus = {e["edge_type"]: e for e in load_corpus()}
+    for et in ("Kerberoast", "ASREPRoast", "DumpSMSAPassword", "DCSync",
+               "AddKeyCredentialLink", "ADCSESC1"):
+        tele = corpus[et]["telemetry"]
+        wd = [t for t in tele if t.get("source") == "wdac"]
+        assert wd, "%s should carry a wdac telemetry entry" % et
+        assert wd[0].get("default_enabled") is False  # WDAC is opt-in, so it's a closable gap
+        ctrls = controls_for_edge(corpus[et])
+        assert any("WDAC" in c or "App Control" in c for c in ctrls), \
+            "%s defensive controls should recommend WDAC" % et
+    # A non-tool edge must not gain a WDAC recommendation.
+    assert not any("WDAC" in c for c in controls_for_edge(corpus["AdminTo"]))
+
+
 def test_corpus_validator_passes_clean():
     from noisehound.validate import validate_corpus
     errors, warnings, checked = validate_corpus(
@@ -484,6 +668,74 @@ def test_shipped_measured_profiles_are_valid():
         assert lateral in audit.adjustments
 
 
+def _one_edge(edge_type, **annotate_kwargs):
+    g = nx.DiGraph()
+    g.add_node("A", name="A")
+    g.add_node("B", name="B")
+    g.add_edge("A", "B", edge_type=edge_type, edge_types=[edge_type])
+    annotate(g, load_corpus(), **annotate_kwargs)
+    return g["A"]["B"]
+
+
+def test_tooling_axis_moves_signature_component():
+    from noisehound.annotate import _tooling_base
+    corpus = load_corpus()
+    # DCSync default assumes on-host mimikatz (85); remote/native Impacket is quieter (59).
+    assert _tooling_base(corpus.get("DCSync"), 85.0, None) == 85.0
+    assert _tooling_base(corpus.get("DCSync"), 85.0, "remote") == 59.0
+    assert _tooling_base(corpus.get("DCSync"), 85.0, "onhost") == 85.0
+    # Kerberoast default is the tool-agnostic baseline (30); on-host Rubeus is louder (61).
+    assert _tooling_base(corpus.get("Kerberoast"), 30.0, "onhost") == 61.0
+    assert _tooling_base(corpus.get("Kerberoast"), 30.0, "remote") == 30.0
+
+
+def test_tooling_does_not_lose_tool_agnostic_detection():
+    # Remote DCSync still trips 4662/MDI when auditing is on - tooling moves only the
+    # endpoint-signature component; the environment posture applies on top of the base.
+    env = EnvironmentProfile.from_dict({"name": "x", "object_auditing_4662": True})
+    quiet = _one_edge("DCSync", tooling="remote")
+    audited = _one_edge("DCSync", tooling="remote", environment=env)
+    assert quiet["effective_noise_score"] == 59.0
+    assert audited["effective_noise_score"] == 90.0
+
+
+def test_live_scores_override_by_edge_type():
+    e = _one_edge("DCSync", live_scores={"DCSync": 12.0})
+    assert e["effective_noise_score"] == 12.0
+    assert e["live_noise_score"] == 12.0
+
+
+def test_schema_tool_score_bounds():
+    # agnostic must be <= static; signature must be >= static.
+    for bad in ({"tool_agnostic_score": 60}, {"tool_signature_score": 20}):
+        entry = {"edge_type": "X", "static_noise_score": 40, "telemetry": [], **bad}
+        try:
+            validate_entry(entry)
+        except CorpusError:
+            continue
+        raise AssertionError("expected CorpusError for %s" % bad)
+    validate_entry({"edge_type": "X", "static_noise_score": 40,
+                    "tool_agnostic_score": 30, "tool_signature_score": 70, "telemetry": []})
+
+
+def test_mdi_coverage_and_profile():
+    from noisehound.mdi import compute_coverage, to_environment_profile
+    corpus = load_corpus()
+    cov = compute_coverage(corpus)
+    # DCSync is a flagship MDI runtime alert (high floor); Kerberoast is medium.
+    assert cov["DCSync"]["kind"] == "alert" and cov["DCSync"]["score"] == 85
+    assert cov["Kerberoast"]["score"] == 70
+    # Only real corpus edges are ever returned.
+    assert set(cov) <= {e["edge_type"] for e in corpus}
+    # Posture adds coverage (gMSA/LAPS) at a lower floor, labelled distinctly.
+    cov_p = compute_coverage(corpus, include_posture=True)
+    assert len(cov_p) > len(cov)
+    assert cov_p["ReadLAPSPassword"]["kind"] == "posture"
+    # The emitted profile loads as an environment profile and carries the floors.
+    p = EnvironmentProfile.from_dict(to_environment_profile(cov))
+    assert p.adjustments["dcsync"] == 85 and p.edr == "mdi"
+
+
 def test_solver_respects_time_budget():
     # A tiny time budget must not prevent a correct answer (threshold sweep is
     # always run) and must return promptly.
@@ -554,6 +806,28 @@ def test_inspect_reports_adcs_synthesis():
     assert "ADCSESC1" in s["edges"]["by_type"]
 
 
+def test_bundled_lab_sample_is_bhce_ingestable():
+    # sample_lab_ce.zip is a lightly-sanitised real SharpHound CE collection (the
+    # public GOAD sevenkingdoms.local lab), shipped so the operator walkthrough is
+    # a pure upload -> writeback -> view flow. It doubles as a BHCE-ingestion
+    # regression fixture: it must parse with full corpus coverage and carry the
+    # computer-access + session families that only a real collection produces -
+    # AdminTo comes from the modern LocalGroups format, HasSession from Sessions.
+    g = load_graph(os.path.join(ROOT, "samples", "sample_lab_ce.zip"))
+    stats = annotate(g, load_corpus())
+    assert stats.coverage == 1.0, "unknown edge types: %s" % sorted(stats.unknown_types)
+    present = set()
+    for _, _, d in g.edges(data=True):
+        present.update(d.get("edge_types", []))
+    assert {"AdminTo", "HasSession", "MemberOf", "DCSync"} <= present
+    # The documented walkthrough path must stay solvable across refactors.
+    src = find_node(g, "svc_deleg")
+    dst = find_node(g, "Domain Admins")
+    assert src is not None and dst is not None
+    paths = solve(g, src, dst, k=1)
+    assert paths, "svc_deleg -> Domain Admins path disappeared from the sample"
+
+
 def test_defensive_detection_gap_analysis():
     from noisehound.defend import analyse
     g = load_graph(SAMPLE)
@@ -584,11 +858,13 @@ def test_neo4j_live_path_with_mock_driver():
     class FakeSession:
         def __enter__(self): return self
         def __exit__(self, *a): return False
-        def run(self, query):
+        def run(self, query, **params):
             if "labels(n)" in query:
                 return [
-                    FakeRecord(oid="S-1", labels=["Base", "User"], name="jdoe@CONTOSO.LOCAL"),
-                    FakeRecord(oid="S-512", labels=["Base", "Group"], name="Domain Admins@CONTOSO.LOCAL"),
+                    FakeRecord(oid="S-1", labels=["Base", "User"],
+                               name="jdoe@CONTOSO.LOCAL", props=None),
+                    FakeRecord(oid="S-512", labels=["Base", "Group"],
+                               name="Domain Admins@CONTOSO.LOCAL", props=None),
                 ]
             return [FakeRecord(source="S-1", target="S-512", rtype="GenericAll")]
 
@@ -605,6 +881,38 @@ def test_neo4j_live_path_with_mock_driver():
     assert g.number_of_nodes() == 2
     assert g.nodes["S-1"]["type"] == "User"
     assert g["S-1"]["S-512"]["edge_type"] == "GenericAll"
+
+
+def test_bolt_path_reconstructs_and_synthesizes_esc():
+    # The analysed DB stores ESC facts as relationships (template PublishedTo CA)
+    # and node properties, not JSON fields. build_graph_from_records must fetch
+    # props, rebuild the CA/template facts, and run synthesis - matching the zip
+    # path - so live-Bolt ingestion is not blind to escalation edges.
+    from noisehound.neo4j_ingest import build_graph_from_records
+    dsid = "S-1-5-21-7"
+    node_records = [
+        {"oid": dsid, "labels": ["Base", "Domain"], "name": "CORP.LOCAL",
+         "props": {"domainsid": dsid}},
+        {"oid": dsid + "-512", "labels": ["Base", "Group"],
+         "name": "DOMAIN ADMINS@CORP.LOCAL", "props": None},
+        {"oid": dsid + "-1105", "labels": ["Base", "User"],
+         "name": "JDOE@CORP.LOCAL", "props": None},
+        {"oid": "T1", "labels": ["Base", "CertTemplate"], "name": "ESC10-T@CORP.LOCAL",
+         "props": {"domainsid": dsid, "authenticationenabled": True,
+                   "schannelauthenticationenabled": True, "requiresmanagerapproval": False,
+                   "authorizedsignatures": 0, "ekus": ["1.3.6.1.5.5.7.3.2"]}},
+        {"oid": "CA1", "labels": ["Base", "EnterpriseCA"],
+         "name": "CORP-CA@CORP.LOCAL", "props": {"domainsid": dsid}},
+    ]
+    rel_records = [
+        {"source": dsid + "-1105", "target": "T1", "rtype": "Enroll"},  # enroller
+        {"source": "T1", "target": "CA1", "rtype": "PublishedTo"},      # published on the CA
+    ]
+    g = build_graph_from_records(node_records, rel_records)
+    # enabled_templates rebuilt from PublishedTo; ESC10b synthesized to Domain Admins.
+    assert g.nodes["CA1"]["enabled_templates"] == ["T1"]
+    assert "ADCSESC10b" in g[dsid + "-1105"][dsid + "-512"]["edge_types"]
+    assert g.graph["adcs_edges_synthesized"] >= 1
 
 
 def test_writeback_builds_rows_and_runs_with_mock_driver():
@@ -694,6 +1002,87 @@ def test_sigma_profile_roundtrips_into_scoring():
     g = _annotated([("P", "DOM", "DCSync")])
     annotate(g, load_corpus(), environment=prof)
     assert g["P"]["DOM"]["effective_noise_score"] == 85
+
+
+def test_elastic_query_event_id_parsing():
+    from noisehound.elastic import _event_ids_from_query
+    assert _event_ids_from_query("event.code:4662 and foo:bar") == {4662}
+    assert _event_ids_from_query('winlog.event_id: "4624"') == {4624}
+    # list form, both delimiters
+    assert _event_ids_from_query("event.code:(4728 or 4729)") == {4728, 4729}
+    assert _event_ids_from_query("process.name:mimikatz.exe") == set()
+
+
+def test_elastic_normalise_skips_disabled_and_reads_attack():
+    from noisehound.elastic import normalise_rules
+    raw = json.load(open(os.path.join(ROOT, "samples", "elastic_rules.example.json"),
+                        encoding="utf-8"))
+    rules = normalise_rules(raw)
+    # 5 rules in the fixture, one disabled (ESC1) -> 4 enabled.
+    assert len(rules) == 4
+    titles = {r.title for r in rules}
+    assert not any("DISABLED" in t for t in titles)
+    dcsync = next(r for r in rules if r.title.startswith("Active Directory Replication"))
+    assert dcsync.event_ids == {4662}
+    # Both the declared parent technique and its subtechnique are kept, matching
+    # how the Sigma tier treats ATT&CK tags; _tech_match handles parent/sub.
+    assert dcsync.techniques == {"T1003", "T1003.006"}
+
+
+def test_elastic_technique_only_tier_is_opt_in():
+    from noisehound.elastic import normalise_rules
+    from noisehound.sigma import compute_coverage
+    raw = json.load(open(os.path.join(ROOT, "samples", "elastic_rules.example.json"),
+                        encoding="utf-8"))
+    rules = normalise_rules(raw)
+    # The AS-REP rule is an EQL query with no event.code, only technique T1558.004.
+    off = compute_coverage(load_corpus(), rules)                          # Sigma default
+    on = compute_coverage(load_corpus(), rules, allow_technique_only=True)  # SIEM tier
+    assert "ASREPRoast" not in off, "technique-only match must not count by default"
+    assert on["ASREPRoast"]["match"] == "technique"
+    assert on["ASREPRoast"]["score"] == 65  # high floor 85 - 20 technique-only penalty
+    # Event-grounded matches are identical either way.
+    assert on["DCSync"]["match"] == off["DCSync"]["match"] == "event_id+technique"
+
+
+def test_elastic_profile_roundtrips_into_scoring(capsys):
+    from noisehound.elastic import main
+    from noisehound.environment import EnvironmentProfile
+    out = os.path.join(ROOT, "samples", "_tmp_elastic_env.json")
+    try:
+        rc = main(["--rules-json", os.path.join(ROOT, "samples", "elastic_rules.example.json"),
+                   "--out", out, "--quiet"])
+        assert rc == 0
+        profile = json.load(open(out, encoding="utf-8"))
+    finally:
+        if os.path.exists(out):
+            os.remove(out)
+    assert profile["adjustments"]["DCSync"] == 85
+    assert profile["adjustments"]["Kerberoast"] == 70
+    assert profile["adjustments"]["ASREPRoast"] == 65
+    prof = EnvironmentProfile.from_dict(profile)
+    g = _annotated([("P", "DOM", "Kerberoast")])
+    annotate(g, load_corpus(), environment=prof)
+    assert g["P"]["DOM"]["effective_noise_score"] == 70
+
+
+def test_elastic_structural_edges_excluded_from_denominator():
+    from noisehound.elastic import _is_measurable, _render_report
+    corpus = load_corpus()
+    by = {e["edge_type"]: e for e in corpus}
+    # Structural topology edges carry no technique and no telemetry event id.
+    assert _is_measurable(by["Contains"]) is False
+    assert _is_measurable(by["GpLink"]) is False
+    # A real abuse is measurable: technique (AZVMContributor=T1651) or event id (DCSync).
+    assert _is_measurable(by["AZVMContributor"]) is True
+    assert _is_measurable(by["DCSync"]) is True
+    # The report denominator counts measurable edges only, and names the excluded ones.
+    n_measurable = sum(1 for e in corpus if _is_measurable(e))
+    report = _render_report(corpus, {}, 0)
+    assert "0/%d measurable edges" % n_measurable in report
+    assert "Not measurable by this source" in report
+    assert "Contains" in report.split("Not measurable")[1]
+    assert "GpLink" in report.split("Not measurable")[1]
 
 
 def test_path_detection_probability_model():
@@ -873,6 +1262,42 @@ def test_ingest_reads_privileged_and_registry_sessions():
     assert g["S-WS1"]["S-U1"]["edge_type"] == "HasSession"
 
 
+def test_ingest_reads_modern_localgroups():
+    # SharpHound v2+/BloodHound CE report local-group membership under a single
+    # LocalGroups list keyed by the group's SID; the trailing RID names the group
+    # (544=Administrators, 555=RDP, 562=DCOM, 580=WinRM). The legacy per-collection
+    # LocalAdmins/RemoteDesktopUsers/... arrays are gone from v2.13, so without a
+    # LocalGroups handler NoiseHound silently drops AdminTo/CanRDP/ExecuteDCOM/
+    # CanPSRemote on every current collection (regression from a real v2.13 export).
+    comp = "S-1-5-21-1-2-3-1106"
+    export = {"computers.json": {"meta": {"type": "computers"}, "data": [{
+        "ObjectIdentifier": comp,
+        "Properties": {"name": "WK1@CORP"}, "Aces": [],
+        "LocalGroups": [
+            {"ObjectIdentifier": comp + "-544",
+             "Results": [{"ObjectIdentifier": "S-ADMIN", "ObjectType": "User"}]},
+            {"ObjectIdentifier": comp + "-555",
+             "Results": [{"ObjectIdentifier": "S-RDP", "ObjectType": "Group"}]},
+            {"ObjectIdentifier": comp + "-562",
+             "Results": [{"ObjectIdentifier": "S-DCOM", "ObjectType": "User"}]},
+            {"ObjectIdentifier": comp + "-580",
+             "Results": [{"ObjectIdentifier": "S-WINRM", "ObjectType": "User"}]},
+            {"ObjectIdentifier": comp + "-513",  # unmapped RID must be ignored
+             "Results": [{"ObjectIdentifier": "S-NOISE", "ObjectType": "User"}]},
+        ],
+    }]}}
+    zpath = _bh_zip(export)
+    try:
+        g = load_graph(zpath)
+    finally:
+        os.remove(zpath)
+    assert g["S-ADMIN"][comp]["edge_type"] == "AdminTo"
+    assert g["S-RDP"][comp]["edge_type"] == "CanRDP"
+    assert g["S-DCOM"][comp]["edge_type"] == "ExecuteDCOM"
+    assert g["S-WINRM"][comp]["edge_type"] == "CanPSRemote"
+    assert not g.has_edge("S-NOISE", comp)  # RID 513 has no edge mapping
+
+
 def test_ingest_tolerates_utf8_bom_in_zip():
     # Real SharpHound / BloodHound CE exports sometimes write JSON with a UTF-8
     # BOM; ingest must strip it rather than choke (regression from a real export).
@@ -917,6 +1342,144 @@ def test_deadair_engine_matches_python():
         assert round(a.path_score, 1) == round(b.path_score, 1)
         assert a.hop_count == b.hop_count
         assert [e["edge_type"] for e in a.edges] == [e["edge_type"] for e in b.edges]
+
+
+def test_azurehound_detection():
+    from noisehound.azure_ingest import is_azurehound_doc
+    assert is_azurehound_doc({"meta": {"type": "azure"}, "data": []})
+    assert not is_azurehound_doc({"meta": {"type": "users"}, "data": []})
+    assert not is_azurehound_doc({"nodes": [], "edges": []})
+
+
+def _write_json(doc) -> str:
+    import tempfile
+    fd, path = tempfile.mkstemp(suffix=".json", dir=os.path.join(ROOT, "samples"))
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        json.dump(doc, fh)
+    return path
+
+
+def test_azure_ingest_real_sample_grounds_phase1_and_phase2():
+    # The shipped sample is a trimmed-but-real azurehound v3.1 `list -o`
+    # collection (DreadHost tenant recon, 2026-08-16) - not a synthetic
+    # fixture. Regression-guards both the raw dispatch (AZHasRole from
+    # AZRoleAssignment, AZOwns from the real ARM-nested AZSubscriptionOwner
+    # record) and phase-2 synthesis (AZGlobalAdmin from templateId matching).
+    g = load_graph(os.path.join(ROOT, "samples", "azurehound_native.example.json"))
+    types = {d.get("type") for _, d in g.nodes(data=True)}
+    assert {"AZTenant", "AZUser", "AZRole", "AZServicePrincipal", "AZApp", "AZSubscription"} <= types
+    all_edges = {e for _, _, d in g.edges(data=True) for e in d.get("edge_types", [])}
+    assert "AZHasRole" in all_edges
+    assert "AZOwns" in all_edges
+    assert "AZGlobalAdmin" in all_edges  # phase-2: synthesised, not in raw output
+    assert g.graph["azure_edges_synthesized"] >= 1
+
+
+def test_azure_synthesis_addmembers_addsecret_resetpassword():
+    # Synthetic fixture exercising the resolution logic the real sample
+    # doesn't reach: AZAddMembers (Groups Administrator -> groups), AZAddSecret
+    # (App Administrator -> apps/SPs), and the AZResetPassword tiering (a
+    # Password Administrator can reset a non-admin but not a Global Admin).
+    from noisehound.azure_synthesis import (
+        ROLE_GLOBAL_ADMIN, ROLE_GROUPS_ADMIN, ROLE_APP_ADMIN, ROLE_PASSWORD_ADMIN,
+    )
+    doc = {
+        "meta": {"type": "azure", "count": 0},
+        "data": [
+            {"kind": "AZTenant", "data": {"id": "/TENANTS/T1", "displayName": "T"}},
+            {"kind": "AZUser", "data": {"id": "U-GA", "displayName": "GA"}},
+            {"kind": "AZUser", "data": {"id": "U-GROUPSADMIN", "displayName": "GROUPSADMIN"}},
+            {"kind": "AZUser", "data": {"id": "U-APPADMIN", "displayName": "APPADMIN"}},
+            {"kind": "AZUser", "data": {"id": "U-PWDADMIN", "displayName": "PWDADMIN"}},
+            {"kind": "AZUser", "data": {"id": "U-PLAIN", "displayName": "PLAIN"}},
+            {"kind": "AZGroup", "data": {"id": "GRP1", "displayName": "GRP1"}},
+            {"kind": "AZApp", "data": {"id": "APP1", "displayName": "APP1"}},
+            {"kind": "AZRole", "data": {"id": "R-GA", "templateId": ROLE_GLOBAL_ADMIN, "displayName": "Global Administrator"}},
+            {"kind": "AZRole", "data": {"id": "R-GRP", "templateId": ROLE_GROUPS_ADMIN, "displayName": "Groups Administrator"}},
+            {"kind": "AZRole", "data": {"id": "R-APP", "templateId": ROLE_APP_ADMIN, "displayName": "Application Administrator"}},
+            {"kind": "AZRole", "data": {"id": "R-PWD", "templateId": ROLE_PASSWORD_ADMIN, "displayName": "Password Administrator"}},
+            {"kind": "AZRoleAssignment", "data": {"roleAssignments": [{"principalId": "U-GA", "roleDefinitionId": "R-GA"}]}},
+            {"kind": "AZRoleAssignment", "data": {"roleAssignments": [{"principalId": "U-GROUPSADMIN", "roleDefinitionId": "R-GRP"}]}},
+            {"kind": "AZRoleAssignment", "data": {"roleAssignments": [{"principalId": "U-APPADMIN", "roleDefinitionId": "R-APP"}]}},
+            {"kind": "AZRoleAssignment", "data": {"roleAssignments": [{"principalId": "U-PWDADMIN", "roleDefinitionId": "R-PWD"}]}},
+        ],
+    }
+    path = _write_json(doc)
+    try:
+        g = load_graph(path)
+    finally:
+        os.remove(path)
+
+    # AZAddMembers: Groups Administrator -> the group.
+    assert "AZAddMembers" in g["U-GROUPSADMIN"]["GRP1"]["edge_types"]
+    # AZAddSecret: Application Administrator -> the app.
+    assert "AZAddSecret" in g["U-APPADMIN"]["APP1"]["edge_types"]
+    # AZResetPassword tiering: Password Administrator can reset the plain user...
+    assert "AZResetPassword" in g["U-PWDADMIN"]["U-PLAIN"]["edge_types"]
+    # ...but not the Global Administrator (a lower-priv role can't reset a
+    # higher-priv target - the whole point of postAzureResetPassword's tiers).
+    assert not g.has_edge("U-PWDADMIN", "U-GA")
+
+
+def test_azure_synthesis_addmembers_directory_writers_and_governance():
+    # Regression for the review finding: post.go's non-role-assignable AddMembers
+    # tier also includes Directory Writers + Identity Governance Administrator,
+    # which were previously omitted (silent under-report). Confirm both now grant
+    # AZAddMembers.
+    from noisehound.azure_synthesis import (
+        ROLE_DIRECTORY_WRITERS, ROLE_IDENTITY_GOVERNANCE_ADMIN,
+    )
+    doc = {
+        "meta": {"type": "azure", "count": 0},
+        "data": [
+            {"kind": "AZTenant", "data": {"id": "/TENANTS/T1", "displayName": "T"}},
+            {"kind": "AZUser", "data": {"id": "U-DW", "displayName": "DW"}},
+            {"kind": "AZUser", "data": {"id": "U-IGA", "displayName": "IGA"}},
+            {"kind": "AZGroup", "data": {"id": "GRP1", "displayName": "GRP1"}},
+            {"kind": "AZRole", "data": {"id": "R-DW", "templateId": ROLE_DIRECTORY_WRITERS, "displayName": "Directory Writers"}},
+            {"kind": "AZRole", "data": {"id": "R-IGA", "templateId": ROLE_IDENTITY_GOVERNANCE_ADMIN, "displayName": "Identity Governance Administrator"}},
+            {"kind": "AZRoleAssignment", "data": {"roleAssignments": [{"principalId": "U-DW", "roleDefinitionId": "R-DW"}]}},
+            {"kind": "AZRoleAssignment", "data": {"roleAssignments": [{"principalId": "U-IGA", "roleDefinitionId": "R-IGA"}]}},
+        ],
+    }
+    path = _write_json(doc)
+    try:
+        g = load_graph(path)
+    finally:
+        os.remove(path)
+    assert "AZAddMembers" in g["U-DW"]["GRP1"]["edge_types"]
+    assert "AZAddMembers" in g["U-IGA"]["GRP1"]["edge_types"]
+
+
+def test_azure_synthesis_directory_writers_excluded_from_resetpassword_nonadmin_tier():
+    # Regression: adding a role to _ALL_NAMED_ROLES must actually exclude its
+    # holders from the AZResetPassword "non-admin" target pool - a Password
+    # Administrator can reset a plain user, but not someone who holds Directory
+    # Writers (a named admin-ish role), even though that role grants no
+    # AZResetPassword targeting of its own. Catches the DirectoryWriters/
+    # IdentityGovernanceAdmin patch updating _ALL_NAMED_ROLES (unused elsewhere)
+    # without updating the hand-listed non_admin_users exclusion that actually
+    # gates this tier.
+    from noisehound.azure_synthesis import ROLE_DIRECTORY_WRITERS, ROLE_PASSWORD_ADMIN
+    doc = {
+        "meta": {"type": "azure", "count": 0},
+        "data": [
+            {"kind": "AZUser", "data": {"id": "U-PWDADMIN", "displayName": "PWDADMIN"}},
+            {"kind": "AZUser", "data": {"id": "U-DW", "displayName": "DW"}},
+            {"kind": "AZUser", "data": {"id": "U-PLAIN", "displayName": "PLAIN"}},
+            {"kind": "AZRole", "data": {"id": "R-PWD", "templateId": ROLE_PASSWORD_ADMIN, "displayName": "Password Administrator"}},
+            {"kind": "AZRole", "data": {"id": "R-DW", "templateId": ROLE_DIRECTORY_WRITERS, "displayName": "Directory Writers"}},
+            {"kind": "AZRoleAssignment", "data": {"roleAssignments": [{"principalId": "U-PWDADMIN", "roleDefinitionId": "R-PWD"}]}},
+            {"kind": "AZRoleAssignment", "data": {"roleAssignments": [{"principalId": "U-DW", "roleDefinitionId": "R-DW"}]}},
+        ],
+    }
+    path = _write_json(doc)
+    try:
+        g = load_graph(path)
+    finally:
+        os.remove(path)
+    assert "AZResetPassword" in g["U-PWDADMIN"]["U-PLAIN"]["edge_types"]
+    assert not g.has_edge("U-PWDADMIN", "U-DW")
 
 
 def _run_all():

@@ -147,20 +147,36 @@ they are visible and queryable inside the BloodHound UI.
 **Explore → Upload** (or the file-ingest API) and let BHCE analyse it. Everything
 below then works unchanged.
 
-**To reproduce this walkthrough exactly, offline**, seed the small CORP.LOCAL
-demo graph. This is a **safe, additive** script — it only creates the six demo
-objects and never deletes anything:
+**To reproduce this against real data (recommended)**, upload the bundled
+[`samples/sample_lab_ce.zip`](../samples/sample_lab_ce.zip). It is a lightly
+sanitised, genuine SharpHound CE collection of the public
+[GOAD](https://github.com/Orange-Cyberdefense/GOAD) `sevenkingdoms.local`
+training lab — 323 objects, full AD CS surface — so BHCE ingests and
+post-processes it natively, `AdminTo`/`HasSession`/`DCSync` and all. Drag it onto
+**Explore → Upload**, wait for *Analysis complete*, then run the commands in 3.2+
+against `SEVENKINGDOMS.LOCAL` — a good starter query is:
+
+```bash
+python -m noisehound -i bolt://localhost:7687 -s svc_deleg -o "Domain Admins" -d SEVENKINGDOMS.LOCAL -k 3
+```
+
+**To reproduce the exact screenshots below, offline**, seed the small CORP.LOCAL
+demo graph instead. This is a **safe, additive** script — it only creates the six
+demo objects and never deletes anything:
 
 ```bash
 # <graph-db> is the BHCE Neo4j container, e.g. bloodhound-graph-db-1
 docker exec -i <graph-db> cypher-shell -u neo4j -p <neo4j-password> < docs/seed_demo_graph.cypher
 ```
 
-> **Why a seed and not a sample upload?** A hand-authored micro-sample does not
-> round-trip *computer/session* edges (`AdminTo`, `HasSession`) through BHCE's
-> ingestion — a real SharpHound collection carries them natively, but a tiny
-> teaching fixture does not. The seed reproduces the full two-route graph so the
-> screenshots match. On real data you never need it.
+> **Sample upload vs. seed.** The bundled `sample_lab_ce.zip` is a *real*
+> collection, so it round-trips computer/session edges (`AdminTo`, `HasSession`)
+> through BHCE's ingestion natively — no seed required. The CORP.LOCAL seed exists
+> only because the figures below were captured against that tiny two-route graph;
+> use whichever matches what you want to see. (A *hand-authored* micro-fixture is
+> what does **not** ingest cleanly — BHCE won't synthesise those edges from a
+> minimal file with no real `domains.json`, which is exactly why the shipped sample
+> is a sanitised real export rather than a toy.)
 
 ### 3.2 Rank the paths (NoiseHound reads the live graph over Bolt)
 
@@ -374,6 +390,52 @@ absent*, mapped to the specific control (and Windows event / Sysmon rule) that
 would catch it — then ranked by how much detection each control would add. It
 turns "here is the quiet route" into "here is what to instrument."
 
+### 5.1 Score against a *live* detection inventory (Elastic)
+
+`--defensive` and `noisehound-sigma` answer "what *could* detect this." To answer
+"what is *actually deployed and enabled right now*," `noisehound-elastic` reads
+the detection rules from a running Elastic Security (Kibana) stack and turns them
+into the same coverage profile — so a covered edge is scored as loud and an
+uncovered one stays quiet, because no enabled rule fires on it.
+
+```bash
+# Live (read-only GET against the detection engine; API key needs read on Security):
+export KIBANA_URL=https://kibana:5601
+export KIBANA_API_KEY=<base64 ApiKey>
+noisehound-elastic -o elastic-coverage.json          # writes an --environment profile + gap report
+
+# Or fully offline, against a saved rules export (no credentials):
+noisehound-elastic --rules-json samples/elastic_rules.example.json -o elastic-coverage.json
+```
+
+```
+ELASTIC COVERAGE  7/57 corpus edges covered by 4 enabled rules
+
+Covered (edge -> detection floor, match, rule):
+  DCSync                  85  [event_id+technique]  Active Directory Replication from Non-DC (DCSync)
+  Kerberoast              70  [event_id+technique]  Kerberoasting - Service Ticket Requests (RC4)
+  ASREPRoast              65  [technique]           AS-REP Roasting via Preauth-Disabled Accounts
+
+Detection gaps - attack edges NO enabled rule covers:
+  ADCSESC1, AddKeyCredentialLink, AdminTo, GenericAll, ReadGMSAPassword, WriteDacl, ...
+```
+
+Then feed that profile straight back into scoring — a path over a *covered* edge
+gets louder, a path through the *gaps* stays quiet:
+
+```bash
+python -m noisehound -i bolt://localhost:7687 -s svc_deleg -o "Domain Admins" \
+    -d SEVENKINGDOMS.LOCAL -e elastic-coverage.json
+```
+
+Matching is deliberately conservative (a defensive tool must not overstate
+coverage): a rule covers an edge when it names an event code the edge emits *and*
+its ATT&CK technique agrees; enabled Elastic rules that are purely behavioural
+also match on an agreeing technique alone, flagged `[technique]` and scored lower
+so the report never conflates them with event-grounded coverage. Disabled rules
+are ignored. The same normalise-then-score pattern extends to Splunk / Sentinel /
+MDI next.
+
 ---
 
 ## 6. The corpus at a glance
@@ -418,6 +480,7 @@ tier-specific values ship as drop-in profiles in [`profiles/`](../profiles); see
 | JSON / HTML / text output | `-f json\|html\|text` | §2 |
 | Blue-team detection-gap report | `--defensive` | §5 |
 | Environment- and Sigma-aware scoring | `--environment`, `noisehound-sigma` | main README |
+| Score against a live Elastic detection inventory | `noisehound-elastic` | §5.1 |
 
 ---
 
@@ -441,7 +504,7 @@ environment, and what is on the roadmap (identity-alert / MDI tier, the full
 |---------|-------------|
 | `unauthorized … authentication failure` from Neo4j | Wrong Bolt password. Use `NEO4J_SECRET` from your BHCE `.env`, **not** the web-login password. |
 | Cypher query shows **"No results match your criteria"** | You returned scalars (`RETURN r.noise`). BHCE's Cypher tab only renders graphs — return a path (`RETURN p`) and read values from the edge panel. |
-| Uploaded a sample zip, BHCE says "Complete" but **0 nodes** | A minimal, hand-authored export with no `domains.json` won't anchor, and BHCE won't synthesise `AdminTo`/`HasSession` from a tiny fixture. Use a real SharpHound collection, or the safe seed ([`seed_demo_graph.cypher`](seed_demo_graph.cypher)). |
+| Uploaded a sample zip, BHCE says "Complete" but **0 nodes** | You uploaded a minimal, hand-authored export — no `domains.json` to anchor on, and BHCE won't synthesise `AdminTo`/`HasSession` from a tiny fixture. Upload the bundled real collection [`samples/sample_lab_ce.zip`](../samples/sample_lab_ce.zip) (or your own SharpHound zip), or use the safe seed ([`seed_demo_graph.cypher`](seed_demo_graph.cypher)). |
 | `writeback` scored fewer edges than exist | Structural or unmapped edge types (e.g. `Contains`, `GetChangesAll`) have no corpus entry and are left unscored by design. Query them with the `noise_known = false` snippet in [`CYPHER.md`](CYPHER.md). |
 | `--engine rust` errors | DeadAir binary not found. `cargo install deadair`, or set `$NOISEHOUND_DEADAIR` to its path. |
 | APOC `dijkstra` picks a different path than NoiseHound | Sum-of-noise ≠ the model. Rank by the loudest step (bottleneck); the CLI is authoritative. |

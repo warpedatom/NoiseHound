@@ -1,0 +1,30 @@
+{
+  "edge_type": "AZPrivilegedRoleAdmin",
+  "description": "Privileged Role Administrator - can grant any Entra role (including Global Administrator) to any principal.",
+  "static_noise_score": 66,
+  "telemetry": [
+    {
+      "source": "entra_audit",
+      "event_id": null,
+      "detail": "Entra ID audit log: 'Add member to role / Add role assignment (as Privileged Role Administrator)' (directory logging is default-on).",
+      "reliability": "high",
+      "default_enabled": true,
+      "activity": [
+        "Add member to role",
+        "Add eligible member to role",
+        "Add role assignment"
+      ],
+      "category": "RoleManagement"
+    },
+    {
+      "source": "entra_id_protection",
+      "event_id": null,
+      "detail": "Role-assignment changes to privileged roles are a common alerting rule.",
+      "reliability": "high"
+    }
+  ],
+  "mitre_technique": "T1098.003",
+  "prerequisite_privilege": "Privileged Role Administrator role",
+  "abuse_primitive": "Assign GA (or another privileged role) to a controlled principal.",
+  "notes": "The classic Entra privilege-escalation edge; the role grant is always logged."
+}

@@ -19,6 +19,75 @@ from being "another BloodHound path tool."
 
 ---
 
+## Next release target
+
+Everything below is scoped from what this Azure/tooling/ADCS batch actually
+surfaced - not aspirational Phase 1-4 material. Ordered by leverage; each
+item flagged **buildable now**, **gated** (needs a live system/tenant only
+the owner has), or **blocked** (needs another artifact first).
+
+**Done / resolved since this section was written**
+- ~~`azure_activity` resource-plane audit counter~~ - **already shipped.**
+  Wired to all 3 resource-plane edges since the original Azure foundation
+  batch (verified by inspection, 2026-08-20); this item was written on a
+  stale assumption, not a real gap.
+- ~~`sigma.compute_coverage` reconciliation~~ - **confirmed clean, no code
+  change needed.** `noisehound-mdi` and the pending `noisehound-elastic` touch
+  the shared corpus/scoring layer through separate functions
+  (`mdi.compute_coverage` vs `sigma.compute_coverage`'s additive
+  `allow_technique_only` param) - verified by inspection and by running both
+  test suites together on one tree. Not a formality; the answer happened to
+  be "independent by design."
+
+**Needs a design decision, not a mechanical build**
+- **Sentinel as a distinct Azure alert-tier source.** The corpus already
+  acknowledges Sentinel qualitatively (e.g. `AZGlobalAdmin.json`: *"commonly
+  alerted by ID Protection / Sentinel"*), folded into `entra_id_protection`'s
+  text rather than split out. Splitting it into its own `VALID_SOURCES` entry
+  would mean inventing a `reliability` score with no real rule-inventory data
+  behind it - unlike ID Protection (a fixed first-party product with known
+  risk-detection types), Sentinel's actual detection depends entirely on
+  which analytics rules a given tenant deploys. Model it honestly (needs a
+  real Sentinel rule inventory) or leave it hedged as-is - don't fabricate a
+  number to make this look buildable-now.
+
+**Buildable now (no external dependency)**
+1. **Tempo / dwell modeling** and **confidence intervals** (Phase 1 items 3-4,
+   long-standing, still not started) - real statistical-modeling work, sizable
+   enough to warrant its own design pass rather than folding into this batch.
+
+**Gated (owner-only, needs live infra/auth)**
+2. **The first real `lab-tenant-azure` profile** - run `docs/
+   AZURE_CALIBRATION.md` against an actual tenant. Every Azure edge is still
+   an expert estimate or fixture-validated; this is what promotes them to
+   measured, the same way the on-prem lab run did for 30/57 edges.
+3. **Complete the WDAC measured tier.** `DCSync`/`DumpSMSAPassword`
+   (mimikatz) and `ADCSESC1` (Certify/Certipy) remain modelled-not-measured -
+   those tools weren't run on-host in the session that produced
+   `vulnad-hyperv-wdac.json`.
+4. **Live BHCE validation of `sample_lab_ce.zip`** and a **live
+   `noisehound-elastic`** run - both landed on this repo's `main`
+   (2026-08-20); only the live-infra run itself remains, owner-only.
+
+**Done since this section was written**
+- ~~AzureHound-native ingest~~ - **shipped** (`azure_ingest.py` +
+  `azure_synthesis.py`, `docs/AZUREHOUND_NATIVE_INGEST.md`). The recon landed
+  (2026-08-20, real DreadHost tenant collection), grounding both the raw
+  schema and the `post.go` synthesis logic; built and tested same-day against
+  the real trimmed fixture (`samples/azurehound_native.example.json`) plus a
+  synthetic fixture for the tiering logic the real sample doesn't reach.
+  Documented gaps remain (`AZRunsAs` unresolved, a couple of unconfirmed
+  field shapes) - see the doc - but this is no longer the "doesn't exist yet"
+  gap it was.
+
+**Blocked (needs a prior artifact)**
+5. **Hybrid edges** (Entra Connect / PHS-PTA / seamless SSO) so MDI
+   contributes across the on-prem/cloud boundary - now unblocked in principle
+   (native ingest gives real Azure-side principals to link against) but not
+   started.
+
+---
+
 ## Phase 1 - Deepen the model (buildable now)
 
 The credibility core. None of this needs external data.
@@ -47,32 +116,21 @@ The credibility core. None of this needs external data.
 
 Meet users where they already are.
 
-6. **Native BloodHound CE / Neo4j integration.** *(Bolt read + write-back +
-   Cypher pack + operator walkthrough with UI screenshots: shipped in v1.0.0 -
-   `noisehound-writeback`, `docs/CYPHER.md`, `docs/WALKTHROUGH.md`, live-validated
-   against a running BHCE stack.)* Remaining: hook into SpecterOps OpenGraph for
-   custom edges.
-   - **Ship a BHCE-ingestable bundled sample (buildable now).** Learning from the
-     v1.0.0 walkthrough: the tiny hand-authored `sample_*_ce.zip` fixtures are
-     fine for the CLI (NoiseHound's own parser reads `LocalAdmins`/`Sessions`),
-     but BHCE's *ingestion* will not synthesise computer/session edges (`AdminTo`,
-     `HasSession`, `CanRDP`) from a minimal fixture, and drops a collection with no
-     `domains.json` to 0 nodes. The walkthrough works around this with safe,
-     additive Cypher seeds (`docs/seed_demo_graph.cypher`,
-     `docs/seed_showcase_graph.cypher`). The real fix: sanitise a *real* SharpHound
-     collection (VM Claude already has `_lab_prep/sevenkingdoms-bloodhound.zip`,
-     351 objects, full coverage) into a bundled `samples/sample_lab_ce.zip` that
-     ingests cleanly, so the UI walkthrough is a pure "upload → writeback → view"
-     flow with no seed step. Doubles as a BHCE-ingestion regression fixture.
-   - **`noisehound-writeback --dry-run` (buildable now, nice-to-have).** Writeback
-     is already non-destructive (it only `SET`s `r.noise`/`r.noise_known`), but a
-     dry-run that reports the edges it *would* stamp reassures cautious operators
-     running it against a production BloodHound instance.
+6. **Native BloodHound CE / Neo4j integration.** *(Bolt read: shipped in v0.5.0,
+   `neo4j_ingest.py` - pending live validation against a running instance.)*
+   Remaining: write noise back as edge/node properties, plus a Cypher query pack,
+   so "quietest path" is visible inside the BloodHound UI, and hook into
+   SpecterOps OpenGraph for custom edges.
 7. **Score against deployed detections.** *(Tier 2 - Sigma rule coverage -
-   shipped in v0.5.0, `noisehound-sigma`.)* Remaining tiers: live SIEM/EDR API
-   ingestion (Splunk/Sentinel/Elastic/MDI) to compute coverage from a running
-   detection inventory. "Quiet *here* because the DCSync analytic is not
-   enabled." Nobody is doing detection-aware pathing against a live inventory.
+   shipped in v0.5.0, `noisehound-sigma`. Tier 3 - live Elastic Security
+   inventory - shipped, `noisehound-elastic`: reads the enabled detection rules
+   from a running Kibana detection engine over the read-only `_find` API (or an
+   offline export), normalises each rule's ATT&CK + event-code mapping, and reuses
+   the Sigma matcher with a technique-only tier for behavioural queries. Emits the
+   same `--environment` coverage profile + gap report. Live-path validation
+   against the lab Elastic stack is the remaining owner step.)* Remaining tiers:
+   Splunk / Sentinel / MDI API ingestion on the same normalise-then-`compute_coverage`
+   pattern. Nobody is doing detection-aware pathing against a live inventory.
 
 ## Phase 3 - Rigor and credibility (gated: needs the lab)
 
@@ -98,28 +156,45 @@ What earns the tool academic/industry respect.
     work.
 14. **Game-theoretic / adaptive modeling.** Model the defender's response (trip
     X and they start watching Y) - quietest path under an active defender.
-15. **ADCS ESC9/10/13 synthesis** (ESC1-8 ship now).
+15. **ADCS ESC9/10/13 synthesis.** *(ESC9a / ESC10b / ESC13 shipped alongside the
+    ESC1-8 pass; the live Bolt path now runs the same synthesis, not just the zip
+    path.)* Remaining: **ESC10a** (Kerberos weak-binding) has no template-level
+    signal - it depends only on the DC `StrongCertificateBindingEnforcement`
+    registry value, which BloodHound does not collect - so it is intentionally not
+    synthesised (over-reporting it would fire on every auth template). Revisit if a
+    future SharpHound surfaces that DC posture. ESC9b (machine-account victim) is a
+    thin follow-on to ESC9a if a use case appears.
 
 ---
 
 ## Post-calibration open items (from the 2026-08 lab run)
 
-The first real calibration is done: **29/57 edges measured** across audit, EDR
+The first real calibration is done: **30/57 on-prem edges measured** across audit, EDR
 (Defender for Endpoint), and Elastic SIEM tiers, shipped in `profiles/`, with
 closed-loop validation (`docs/VALIDATION.md`). What that run surfaced as next work,
 by leverage:
 
 **Coverage (highest leverage first)**
-- **Full GOAD on a bare-metal Proxmox box.** The 29 measured are a Vulnerable-AD
-  subset; a Ludus/GOAD build gives the full 57-edge surface *and* unblocks the MDI
-  alert tier (real wire traffic for the sensor) in one investment.
-- **MDI runtime-alert tier.** MDI *posture/ISPM* works and corroborated our edges;
-  the runtime alert path was dark on Hyper-V (capture-path limit, not learning
-  period - a deterministic network Kerberoast produced zero Identity alerts). Redo
-  on a bare-metal/Ludus DC; use Impacket `secretsdump` from Linux for network DCSync.
-- **The remaining ~28 edges:** coercion/relay (needs an inbound-reachable attacker -
-  flat Proxmox L2), ADCS ESC2-13 (share ESC1's 4886/4887 signal), CanRDP (4778),
-  AllExtendedRights (4662 confidential read).
+- **MDI runtime-alert tier - RESOLVED (2026-08-20).** The earlier "dark on
+  Hyper-V" verdict was a **classic-sensor limitation**, not a capture-path or
+  learning-period issue: on the new v3 (ETW/MDE) sensor - activated via the
+  DC's onboarded MDE agent after patching the OS - runtime alerts fire on the
+  same lab (Kerberoast/AS-REP High, RBCD Medium, from remote Impacket/
+  bloodyAD). DCSync was *blocked* by Defender XDR Attack Disruption
+  (prevented, not scored); AddMember/shadow-creds/ESC1 stayed transient/
+  request-only. Measured profile `profiles/vulnad-hyperv-mdi.json` +
+  `docs/MDI_RUNTIME_TIER.md` - landed on this repo's `main`.
+- ~~AzureHound-native ingest - scoped, not built~~ - **shipped** (`docs/
+  AZUREHOUND_NATIVE_INGEST.md`, `azure_ingest.py` + `azure_synthesis.py`).
+  Recon landed 2026-08-20 (real DreadHost tenant collection) and confirmed the
+  hypothesis: only 4 of 13 corpus edges were in raw output, the other 9 needed
+  the synthesis pass - built same-day against real + synthetic fixtures.
+- **The remaining ~26 on-prem edges:** coercion/relay (needs an inbound-reachable
+  attacker - flat Proxmox L2), CanRDP (4778), AllExtendedRights (4662
+  confidential read). ADCS ESC2-9/11-13 now covered (ESC1-8 + ESC9a/10b/13
+  synthesised; ESC10a intentionally gated - see item 15).
+- **Full GOAD on a bare-metal Proxmox box.** The 30 measured are a Vulnerable-AD
+  subset; a Ludus/GOAD build gives the full 57-edge on-prem surface.
 
 **Harness quality**
 - **Causal correlation + idle-baseline subtraction** (bug #3 remains): score an
@@ -143,13 +218,57 @@ reflects the tooling spread, not just the loudest case. Most-requested conceptua
 - DeadAir: add regression fixtures using the measured profiles; add a `cargo bench`.
 - Commit the real lab graph as a regression fixture with an asserted quietest-path
   (P2); ship the Elastic stack as a documented "stand up your own SIEM tier" recipe.
-- **Azure/Entra** is a separate track, gated on the corpus first gaining AZ* edges.
+- **Azure/Entra** - foundation shipped (14 `AZ*` edges + Entra telemetry,
+  `docs/AZURE.md`), the **measured audit tier tooling** shipped
+  (`noisehound-entra` + `docs/AZURE_CALIBRATION.md`: Entra `directoryAudits` ->
+  calibrated `lab-tenant-azure` profile, reusing the on-prem calibrate math,
+  with an ID-Protection alert-tier hook via `--risk-detections`), and
+  `defender_for_cloud` is modeled (not measured - needs a paid MDC plan) as
+  the resource-plane alert layer, and `azure_activity` already backs the
+  resource-plane edges' audit half. **AzureHound-native ingest shipped**
+  (see coverage section above). Next: run `noisehound-entra` against a live
+  lab tenant for the first *real* measured profile (owner-only, needs tenant
+  access); Sentinel as a second alert-tier source alongside ID Protection
+  (needs a design decision, not a mechanical build - see the next-release
+  section); hybrid edges (Entra Connect/PHS-PTA/seamless SSO) so MDI
+  contributes across the on-prem/cloud boundary.
+- **WDAC / App Control** - shipped as a tool-signature source
+  (`docs/TOOLING_AXIS.md`) and measured in audit mode on the Hyper-V DC
+  (`profiles/vulnad-hyperv-wdac.json`: Rubeus -> Kerberoast/ASREPRoast,
+  Whisker -> AddKeyCredentialLink, mimikatz -> DCSync/DumpSMSAPassword,
+  Certify -> ADCSESC1; all via CodeIntegrity 3076). All six modelled `wdac`
+  edges are now measured on-host (re-measured 2026-08-21).
 
-## Status snapshot
+## Status snapshot (2026-08-20)
 
-Shipped: BloodHound CE ingestion (real-data validated), 57-edge corpus, ADCS
-ESC1-13 synthesis, noise-weighted solver with correctness backstop, environment
-profiles, **automated calibration harness + 3 measured profiles (audit/EDR/Elastic)**,
-blue-team detection-gap mode, Sigma coverage, probabilistic + Pareto pathing, live
-Neo4j read/write-back, DeadAir Rust engine + `--engine` dispatch, corpus validator +
-schema + CI. 52 tests, 100% corpus coverage on real exports.
+Shipped: BloodHound CE ingestion (real-data validated, incl. the modern
+RID-keyed `LocalGroups` format - SharpHound v2.13/BHCE dropped the old
+per-collection arrays, which was silently losing every computer-access edge
+until this batch) with live-Bolt ESC/roasting synthesis parity, 71-edge corpus
+(57 on-prem + 14 Azure/Entra), ADCS ESC1-9a/10b/13 synthesis (ESC10a
+intentionally gated), noise-weighted solver with correctness backstop,
+environment profiles, **automated calibration harness + measured profiles
+(on-prem audit/EDR/Elastic/MDI-runtime + WDAC tool-signature)**, blue-team
+detection-gap mode, Sigma + live-Elastic coverage (`noisehound-sigma` /
+`noisehound-elastic`, sharing `compute_coverage`), `noisehound-mdi`
+(identity-tier coverage), `noisehound-entra` (measured Azure calibration
+tooling), tooling-profile axis (`--tooling`) + `--live-scores`, the
+BHCE-ingestable `samples/sample_lab_ce.zip` GOAD sample, probabilistic +
+Pareto pathing, live Neo4j read/write-back, DeadAir Rust engine + `--engine`
+dispatch, corpus validator + schema + CI, Azure/Entra foundation + WDAC +
+Defender for Cloud modeling, and **AzureHound-native ingest**
+(`azure_ingest.py` + `azure_synthesis.py` - reads `azurehound list -o` output
+directly, no BHCE required, incl. the post-processing pass for the 9 of 13
+corpus edges that only BHCE's backend used to compute). **75 tests**, 100%
+corpus coverage on real exports. This repo's `main` and the main machine's now
+hold the same on-prem/tooling/Azure feature set (modulo `docs/WALKTHROUGH.md`,
+an owner-lineage doc not on this repo - separate one-file sync if wanted); the
+AzureHound-native ingest work above was built directly on this repo and has
+not yet round-tripped to the main machine.
+
+Owner-only validation still open (live infra/auth, not buildable from either
+machine): upload `sample_lab_ce.zip` into a live BHCE once and confirm Analysis
+completes; run `noisehound-elastic` against the lab Elastic stack; run the
+`docs/AZURE_CALIBRATION.md` recipe in a real lab tenant for the first genuine
+`lab-tenant-azure` profile; validate AzureHound-native ingest against a full,
+non-trimmed real collection (built against a 14-record trimmed sample so far).

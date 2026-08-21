@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 
 import networkx as nx
@@ -47,6 +48,13 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Edge-mapping corpus directory (default: bundled edge_mappings/).")
     p.add_argument("--environment", "-e", default=None,
                    help="Operator-declared target posture JSON (adjusts scores; see samples/env_profile.example.json).")
+    p.add_argument("--tooling", choices=["onhost", "remote", "native"], default=None,
+                   help="Operator tradecraft: 'onhost' off-the-shelf tools (loud EDR signature) vs "
+                        "'remote'/'native' quiet tradecraft (no signatured binary on the host). Moves the "
+                        "endpoint-signature component of tool-sensitive edges; see docs/TOOLING_AXIS.md.")
+    p.add_argument("--live-scores", default=None, metavar="FILE",
+                   help="JSON of measured live scores that override corpus/environment (Phase 2). Keys: "
+                        "'by_edge_type' {edge: score} and/or 'overrides' [{source,target,edge_type,score}].")
     p.add_argument("--format", "-f", choices=["json", "html", "text"], default="text",
                    help="Output format (default text).")
     p.add_argument("--defensive", action="store_true",
@@ -80,13 +88,24 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def _domain_hint(graph, node) -> str:
+    """Domain label from a node's UPN-style name (part after '@'), else ''.
+
+    Avoids labelling the whole node name as a domain for principals without a
+    domain suffix (e.g. an Entra role objective like "Global Administrator").
+    """
+    name = graph.nodes[node].get("name", "") if node in graph else ""
+    name = name or ""
+    return name.split("@", 1)[1] if "@" in name else ""
+
+
 def _render_text(result: dict) -> str:
     lines = []
     lines.append("NoiseHound %s" % result.get("version", ""))
-    lines.append("Domain: %s   Source: %s -> Objective: %s"
-                 % (result.get("target_domain", "?"),
-                    result.get("source_principal", "?"),
-                    result.get("objective", "?")))
+    dom = result.get("target_domain") or ""
+    src_obj = ("Source: %s -> Objective: %s"
+               % (result.get("source_principal", "?"), result.get("objective", "?")))
+    lines.append(("Domain: %s   %s" % (dom, src_obj)) if dom else src_obj)
     if result.get("environment"):
         lines.append("Environment profile applied: %s" % result["environment"])
     if result.get("constraints"):
@@ -191,7 +210,23 @@ def main(argv: list | None = None) -> int:
                                   avoid_edge_types=set(args.avoid_edge),
                                   keep_nodes={src, dst})
 
-    stats = annotate(graph, corpus, environment=environment)
+    live_scores: dict = {}
+    if args.live_scores:
+        try:
+            with open(args.live_scores, "r", encoding="utf-8-sig") as fh:
+                spec = json.load(fh)
+            if not isinstance(spec, dict):
+                raise ValueError("top-level JSON must be an object")
+            for et, sc in (spec.get("by_edge_type") or {}).items():
+                live_scores[et] = float(sc)
+            for o in (spec.get("overrides") or []):
+                live_scores[(o["source"], o["target"], o["edge_type"])] = float(o["score"])
+        except (FileNotFoundError, json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+            print("live-scores error: %s" % exc, file=sys.stderr)
+            return 2
+
+    stats = annotate(graph, corpus, live_scores=live_scores,
+                     environment=environment, tooling=args.tooling)
 
     # Pick the solve engine (DeadAir Rust binary vs built-in Python).
     deadair = find_deadair()
@@ -227,7 +262,7 @@ def main(argv: list | None = None) -> int:
 
     result = build_result(
         paths,
-        target_domain=args.domain or graph.nodes[dst].get("name", "").split("@")[-1],
+        target_domain=args.domain or _domain_hint(graph, dst) or _domain_hint(graph, src),
         objective=args.objective,
         source_principal=args.source,
         stats=stats,

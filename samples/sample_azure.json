@@ -1,0 +1,30 @@
+{
+  "_comment": "Synthetic Entra/Azure attack graph for NoiseHound (normalized offline format). CONTOSO tenant, no real data. Several routes from a low-privileged user to the Global Administrator role, each with a different detection cost - the quietest hops through an owned, over-privileged service principal.",
+  "nodes": [
+    {"id": "az-analyst", "name": "analyst@contoso.onmicrosoft.com", "type": "AZUser"},
+    {"id": "az-bob", "name": "bob@contoso.onmicrosoft.com", "type": "AZUser"},
+    {"id": "az-sp-legacy", "name": "sp-legacy-app", "type": "AZServicePrincipal"},
+    {"id": "az-sp-finance", "name": "sp-finance-sync", "type": "AZServicePrincipal"},
+    {"id": "az-sp-automation", "name": "sp-automation-runner", "type": "AZServicePrincipal"},
+    {"id": "az-group-admins", "name": "role-assignable-admins", "type": "AZGroup"},
+    {"id": "az-vm-jump", "name": "vm-jump01", "type": "AZVM"},
+    {"id": "az-role-ga", "name": "Global Administrator", "type": "AZRole"}
+  ],
+  "edges": [
+    {"source": "az-analyst", "target": "az-sp-legacy", "edge_type": "AZOwns"},
+    {"source": "az-sp-legacy", "target": "az-role-ga", "edge_type": "AZHasRole"},
+
+    {"source": "az-analyst", "target": "az-sp-finance", "edge_type": "AZAddSecret"},
+    {"source": "az-sp-finance", "target": "az-role-ga", "edge_type": "AZHasRole"},
+
+    {"source": "az-analyst", "target": "az-group-admins", "edge_type": "AZAddMembers"},
+    {"source": "az-group-admins", "target": "az-role-ga", "edge_type": "AZHasRole"},
+
+    {"source": "az-analyst", "target": "az-bob", "edge_type": "AZResetPassword"},
+    {"source": "az-bob", "target": "az-role-ga", "edge_type": "AZHasRole"},
+
+    {"source": "az-analyst", "target": "az-vm-jump", "edge_type": "AZVMContributor"},
+    {"source": "az-vm-jump", "target": "az-sp-automation", "edge_type": "AZRunsAs"},
+    {"source": "az-sp-automation", "target": "az-role-ga", "edge_type": "AZHasRole"}
+  ]
+}

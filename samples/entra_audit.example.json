@@ -1,0 +1,47 @@
+{
+  "_comment": "Example Microsoft Graph /auditLogs/directoryAudits export, trimmed to the fields noisehound-entra reads. Synthetic (a lab tenant), pairs with entra_runs.example.json. Feed: noisehound-entra -a samples/entra_audit.example.json -m samples/entra_runs.example.json --profile-out lab-tenant-azure.json",
+  "value": [
+    {
+      "activityDisplayName": "Add member to role",
+      "category": "RoleManagement",
+      "loggedByService": "Core Directory",
+      "result": "success",
+      "activityDateTime": "2026-08-20T00:05:00Z"
+    },
+    {
+      "activityDisplayName": "Add eligible member to role",
+      "category": "RoleManagement",
+      "loggedByService": "PIM",
+      "result": "success",
+      "activityDateTime": "2026-08-20T00:06:00Z"
+    },
+    {
+      "activityDisplayName": "Add member to group",
+      "category": "GroupManagement",
+      "loggedByService": "Core Directory",
+      "result": "success",
+      "activityDateTime": "2026-08-20T00:15:00Z"
+    },
+    {
+      "activityDisplayName": "Add service principal credentials",
+      "category": "ApplicationManagement",
+      "loggedByService": "Core Directory",
+      "result": "success",
+      "activityDateTime": "2026-08-20T00:25:00Z"
+    },
+    {
+      "activityDisplayName": "Reset password (by admin)",
+      "category": "UserManagement",
+      "loggedByService": "Core Directory",
+      "result": "success",
+      "activityDateTime": "2026-08-20T00:35:00Z"
+    },
+    {
+      "activityDisplayName": "Update StsRefreshTokenValidFrom Timestamp",
+      "category": "UserManagement",
+      "loggedByService": "Core Directory",
+      "result": "success",
+      "activityDateTime": "2026-08-20T00:36:00Z"
+    }
+  ]
+}

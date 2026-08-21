@@ -1,0 +1,30 @@
+{
+  "edge_type": "AZRunsAs",
+  "description": "A resource (VM, automation account, logic app) runs as a service principal / managed identity you can drive.",
+  "static_noise_score": 48,
+  "telemetry": [
+    {
+      "source": "entra_signin",
+      "event_id": null,
+      "detail": "Managed-identity / service-principal sign-in appears in the SP sign-in logs.",
+      "reliability": "medium"
+    },
+    {
+      "source": "azure_activity",
+      "event_id": null,
+      "detail": "Azure Activity log: Resource action that invokes the identity (run-command, job start) is logged. (default-on).",
+      "reliability": "medium"
+    },
+    {
+      "source": "defender_for_cloud",
+      "event_id": null,
+      "detail": "Microsoft Defender for Cloud can alert on anomalous managed-identity resource actions (Defender for Resource Manager/Servers); requires the paid plan + onboarded resource.",
+      "reliability": "medium",
+      "default_enabled": false
+    }
+  ],
+  "mitre_technique": "T1078.004",
+  "prerequisite_privilege": "Control over the resource that carries the managed identity",
+  "abuse_primitive": "Execute on the resource to obtain a token for its managed identity, then act as that SP.",
+  "notes": "Managed-identity token requests are quiet; the SP's subsequent actions are where detection lands."
+}

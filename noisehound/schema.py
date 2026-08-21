@@ -16,6 +16,20 @@ VALID_SOURCES = {
     "network",
     "edr_heuristic",
     "etw",
+    "wdac",             # Windows Defender Application Control / WDAC (CodeIntegrity
+                        # operational log 3076 audit / 3077 block) - a tool-signature
+                        # source: fires on off-the-shelf tool binaries, blind to
+                        # native LOLBin / remote tradecraft (see docs/TOOLING_AXIS.md).
+    # Azure / Entra ID sources. Unlike on-prem SACLs, Entra audit + sign-in logging
+    # is default-ON, so cloud control-plane actions are almost always *logged*; the
+    # noise score turns on whether they are *alerted* (MDCA / ID Protection / SIEM).
+    "entra_audit",          # Entra ID audit logs (directory control-plane operations)
+    "entra_signin",         # Entra ID sign-in logs (interactive + service principal)
+    "entra_id_protection",  # Entra ID Protection risk detections
+    "azure_activity",       # Azure Activity / resource-plane logs (ARM, Key Vault, VM)
+    "mdca",                 # Microsoft Defender for Cloud Apps (activity/anomaly policies)
+    "defender_for_cloud",   # Microsoft Defender for Cloud (CSPM + workload protection) -
+                            # resource-plane threat alerts on ARM operations (paid plans).
 }
 
 VALID_RELIABILITY = {
@@ -88,6 +102,38 @@ def validate_entry(entry: dict) -> str:
             "edge %r: static_noise_score must be a number in 0..100 (got %r)"
             % (edge_type, score)
         )
+
+    # Optional: the tool-agnostic noise floor - the score when the technique is run
+    # with quiet tradecraft (remote Impacket / native), i.e. only audit/network/
+    # identity detection, no EDR/AV signature. Consumed by the --tooling axis.
+    taf = entry.get("tool_agnostic_score")
+    if taf is not None:
+        if not isinstance(taf, (int, float)) or not 0 <= taf <= 100:
+            raise CorpusError(
+                "edge %r: tool_agnostic_score must be a number in 0..100 (got %r)"
+                % (edge_type, taf)
+            )
+        if taf > score:
+            raise CorpusError(
+                "edge %r: tool_agnostic_score (%r) must not exceed static_noise_score (%r)"
+                % (edge_type, taf, score)
+            )
+
+    # Optional: the on-host off-the-shelf ceiling - louder than the default because a
+    # signatured tool (mimikatz/Rubeus/SharpHound) runs on the monitored host and trips
+    # EDR AV signatures. Consumed by --tooling onhost.
+    tss = entry.get("tool_signature_score")
+    if tss is not None:
+        if not isinstance(tss, (int, float)) or not 0 <= tss <= 100:
+            raise CorpusError(
+                "edge %r: tool_signature_score must be a number in 0..100 (got %r)"
+                % (edge_type, tss)
+            )
+        if tss < score:
+            raise CorpusError(
+                "edge %r: tool_signature_score (%r) must not be below static_noise_score (%r)"
+                % (edge_type, tss, score)
+            )
 
     telemetry = _require(entry, "telemetry", edge_type)
     if not isinstance(telemetry, list):

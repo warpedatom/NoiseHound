@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "noisehound"
-version = "1.0.0"
+version = "1.1.0"
 description = "Detection-aware Active Directory attack-path scoring on top of BloodHound data"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -24,6 +24,9 @@ noisehound-calibrate = "noisehound.calibrate:main"
 noisehound-validate = "noisehound.validate:main"
 noisehound-inspect = "noisehound.inspect:main"
 noisehound-sigma = "noisehound.sigma:main"
+noisehound-mdi = "noisehound.mdi:main"
+noisehound-entra = "noisehound.entra:main"
+noisehound-elastic = "noisehound.elastic:main"
 noisehound-writeback = "noisehound.writeback:main"
 
 [project.optional-dependencies]
