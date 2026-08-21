@@ -84,7 +84,7 @@ caught than a long but quiet one. Rank by it with `--rank-by probability`.
 
 ### Two-tier engine (DeadAir)
 
-For large graphs the solve is dispatched to [DeadAir](../deadair), a companion
+For large graphs the solve is dispatched to [DeadAir](https://github.com/warpedatom/DeadAir), a companion
 Rust engine (the OffsetScan-to-OffsetInspect tier). NoiseHound stays the
 feature-rich frontend - ingestion, corpus, environment/Sigma, constraints,
 reporting - and hands the prepared graph to whichever engine solves it, so
@@ -469,7 +469,7 @@ detection facts. Tune them against your own lab detection data.
   broaden the `--tooling` axis.
 - **ADCS ESC10a/10b/13 synthesis** (ESC1-9 synthesis ships now).
 
-Shipped: the Rust engine ([DeadAir](../deadair), `--engine` dispatch), live Neo4j
+Shipped: the Rust engine ([DeadAir](https://github.com/warpedatom/DeadAir), `--engine` dispatch), live Neo4j
 Bolt ingestion (`--input bolt://...`), the selectable **`--tooling`** axis
 (off-the-shelf-on-host vs remote/native; `docs/TOOLING_AXIS.md`), the Phase 2
 **`--live-scores`** hook (measured scores override the corpus/environment), and
