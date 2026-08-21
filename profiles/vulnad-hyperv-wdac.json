@@ -5,6 +5,9 @@
   "adjustments": {
     "Kerberoast": 44,
     "ASREPRoast": 44,
-    "AddKeyCredentialLink": 48
+    "AddKeyCredentialLink": 48,
+    "DCSync": 80,
+    "DumpSMSAPassword": 40,
+    "ADCSESC1": 50
   }
 }

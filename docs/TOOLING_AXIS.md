@@ -100,11 +100,14 @@ and ran the tools on-host from an AV-excluded folder. Each unsigned binary raise
 
 | Tool | 3076 | Edges realized | Calibrated (WDAC tier) |
 |------|-----:|----------------|-----------------------:|
-| `Rubeus.exe`  | 1 | Kerberoast, ASREPRoast | 44 |
-| `Whisker.exe` | 1 | AddKeyCredentialLink   | 48 |
+| `Rubeus.exe`   | 1 | Kerberoast, ASREPRoast   | 44 |
+| `Whisker.exe`  | 1 | AddKeyCredentialLink     | 48 |
+| `mimikatz.exe` | 1 | DCSync, DumpSMSAPassword | 80 / 40 |
+| `Certify.exe`  | 1 | ADCSESC1                 | 50 |
 
 Confirms the axis directly: WDAC catches the **on-host binary**, so those edges are
 loud with off-the-shelf tooling - and it saw **nothing** from the parallel remote
 campaign (Impacket/bloodyAD from Kali) against the same DC. `mimikatz.exe`
-(DCSync/DumpSMSAPassword) and Certipy (ADCS ESC1) weren't run on-host here, so those
-`wdac` edges remain modelled-not-measured. Raw: `_lab_prep/lab_detections_wdac.json`.
+(DCSync/DumpSMSAPassword) and `Certify.exe` (ADCS ESC1) were re-measured on-host
+2026-08-21 - each raised a 3076 at image load, so **all six** modelled `wdac` edges
+are now measured. Raw: `_lab_prep/lab_detections_wdac.json`.

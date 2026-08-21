@@ -21,7 +21,7 @@ from a 4-hop session-hijack chain to a 1-hop ADCS ESC1 (see `docs/VALIDATION.md`
 | `vulnad-hyperv-edr.json`     | Alert / EDR | 30 | Above + a Microsoft Defender for Endpoint severity pass on edges that raised named alerts. |
 | `vulnad-hyperv-elastic.json` | Elastic SIEM | 10 | Open/free Elasticsearch + Kibana with prebuilt rules. Caught SQLAdmin (64) and DCSync (85) at HIGH - free rules matching/beating the commercial EDR. |
 | `vulnad-hyperv-mdi.json`     | MDI runtime | 3 | Microsoft Defender for Identity **runtime alerts**, new v3 (ETW/MDE) sensor. Kerberoast/AS-REP High, RBCD Medium - fired by remote Impacket/bloodyAD. `docs/MDI_RUNTIME_TIER.md`. |
-| `vulnad-hyperv-wdac.json`    | WDAC / App Control | 3 | WDAC audit-mode (CodeIntegrity 3076) tool-signature tier - on-host Rubeus→Kerberoast/AS-REP, Whisker→AddKeyCredentialLink. Blind to remote/native tradecraft. `docs/TOOLING_AXIS.md`. |
+| `vulnad-hyperv-wdac.json`    | WDAC / App Control | 6 | WDAC audit-mode (CodeIntegrity 3076) tool-signature tier - on-host Rubeus→Kerberoast/AS-REP, Whisker→AddKeyCredentialLink, mimikatz→DCSync/DumpSMSAPassword, Certify→ADCSESC1. Blind to remote/native tradecraft. `docs/TOOLING_AXIS.md`. |
 
 ## How they were measured
 

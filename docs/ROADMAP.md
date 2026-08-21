@@ -235,9 +235,9 @@ reflects the tooling spread, not just the loudest case. Most-requested conceptua
 - **WDAC / App Control** - shipped as a tool-signature source
   (`docs/TOOLING_AXIS.md`) and measured in audit mode on the Hyper-V DC
   (`profiles/vulnad-hyperv-wdac.json`: Rubeus -> Kerberoast/ASREPRoast,
-  Whisker -> AddKeyCredentialLink, CodeIntegrity 3076). DCSync/DumpSMSAPassword
-  (mimikatz) and ADCSESC1 (Certify/Certipy) remain modelled-not-measured -
-  those tools weren't run on-host in this session.
+  Whisker -> AddKeyCredentialLink, mimikatz -> DCSync/DumpSMSAPassword,
+  Certify -> ADCSESC1; all via CodeIntegrity 3076). All six modelled `wdac`
+  edges are now measured on-host (re-measured 2026-08-21).
 
 ## Status snapshot (2026-08-20)
 
