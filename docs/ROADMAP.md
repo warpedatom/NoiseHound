@@ -19,6 +19,55 @@ from being "another BloodHound path tool."
 
 ---
 
+## Next release target
+
+Everything below is scoped from what this Azure/tooling/ADCS batch actually
+surfaced - not aspirational Phase 1-4 material. Ordered by leverage; each
+item flagged **buildable now**, **gated** (needs a live system/tenant only
+the owner has), or **blocked** (needs another artifact first).
+
+**Buildable now (no external dependency)**
+1. **`azure_activity` resource-plane audit counter.** `defender_for_cloud`
+   (shipped) covers the *alert* half of the resource-plane edges
+   (`AZVMContributor`/`AZUserAccessAdministrator`/`AZRunsAs`); the *audit*
+   half (`azure_activity`, listed in `docs/AZURE.md`'s source table since the
+   original Azure foundation) still has no telemetry signatures on any edge -
+   asymmetric with how `entra_audit` backs the directory-plane edges.
+2. **Sentinel as a second Azure alert-tier source**, alongside
+   `entra_id_protection` - `noisehound-entra`'s `--risk-detections` hook
+   already generalises to any risk-detection-shaped export.
+3. **`sigma.compute_coverage` reconciliation.** `noisehound-elastic` (pending
+   cherry-pick) and `noisehound-mdi` both extended the same shared function
+   independently, on different machines. Confirm no double-counting or
+   event-id/technique-path drift once both land on one `main` - this is an
+   open correctness question, not a formality.
+4. **Tempo / dwell modeling** and **confidence intervals** (Phase 1 items 3-4,
+   long-standing, still not started).
+
+**Gated (owner-only, needs live infra/auth)**
+5. **The first real `lab-tenant-azure` profile** - run `docs/
+   AZURE_CALIBRATION.md` against an actual tenant. Every Azure edge is still
+   an expert estimate or fixture-validated; this is what promotes them to
+   measured, the same way the on-prem lab run did for 30/57 edges.
+6. **Complete the WDAC measured tier.** `DCSync`/`DumpSMSAPassword`
+   (mimikatz) and `ADCSESC1` (Certify/Certipy) remain modelled-not-measured -
+   those tools weren't run on-host in the session that produced
+   `vulnad-hyperv-wdac.json`.
+7. **Live BHCE validation of `sample_lab_ce.zip`** and a **live
+   `noisehound-elastic`** run (both pending cherry-pick from the main
+   machine).
+
+**Blocked (needs a prior artifact)**
+8. **AzureHound-native ingest** (`docs/AZUREHOUND_NATIVE_INGEST.md`) - blocked
+   on grounding data (a real AzureHound output + BHCE-imported tenant); recon
+   requested, not yet returned. Biggest single gap against "complete" -  a
+   promised capability that doesn't exist yet, not a refinement.
+9. **Hybrid edges** (Entra Connect / PHS-PTA / seamless SSO) so MDI
+   contributes across the on-prem/cloud boundary - depends on #8 landing
+   first (needs real Azure-side principals to link against).
+
+---
+
 ## Phase 1 - Deepen the model (buildable now)
 
 The credibility core. None of this needs external data.
