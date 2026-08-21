@@ -72,3 +72,26 @@ Starter set - extend by enabling more rule categories, native-triggering the rem
 delegation, ADCS), and on a non-EDR host adding the tool-signature rules (Rubeus/Mimikatz/BloodHound).
 Same methodology, same `noisehound-calibrate` step. Packaging the stack config as a documented "stand
 up your own SIEM tier" recipe is a tracked roadmap item.
+
+## `noisehound-elastic` live coverage - closing the ADCS/PKI gap
+
+Separately from the measured tier above, `noisehound-elastic` reads a live Kibana detection
+inventory and reports **rule coverage**, not measured detection rates. A live run against a stock
+1340-rule Elastic 8.15.3 ruleset found **51/71** corpus edges covered, with 20 gaps in three honest
+buckets: 14 AD CS/PKI edges (Elastic ships zero AD CS detections out of the box - its "certificate"
+rules are all TLS/root-cert, not directory-side ADCS abuse), 2 structural (`Contains`/`GpLink` -
+excluded from the denominator, see below), and 1 resource-plane (`AZVMContributor` - wrong telemetry
+source for an on-prem SIEM).
+
+`samples/elastic_adcs_detection_pack.ndjson` is a real, importable 4-rule Kibana export
+(`nh-adcs-request-issuance`, `nh-adcs-template-mod`, `nh-adcs-pkinit`, `nh-azure-vm-runcommand`) that
+closes the AD CS/PKI gap - all 17 ADCS/PKI edges (map to MITRE T1649) covered after import, 13 at the
+top detection floor. Import via Kibana's Rule Management -> Import, or `POST
+/api/detection_engine/rules/_import`.
+
+`_is_measurable()` in `noisehound/elastic.py` excludes zero-signal structural edges (`Contains`,
+`GpLink` - no MITRE technique, no telemetry event id, so no honest rule can ever match them) from the
+coverage denominator, the same way the Azure recipe treats holding-only edges as not-measurable.
+`AZVMContributor` stays counted as a genuine gap rather than excluded - it does carry a technique
+(T1651), so it's plausibly detectable by *some* source (Azure Activity, Defender for Cloud); Elastic
+specifically just can't see it, which is a real reported blind spot, not a structural non-edge.

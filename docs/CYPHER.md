@@ -34,15 +34,30 @@ RETURN [rel IN relationships(p) | rel.noise] AS edge_noise,
        reduce(s = 0.0, rel IN relationships(p) | s + coalesce(rel.noise, 60)) AS total_noise
 ```
 
-### Noise-weighted quietest path (requires APOC)
+### Noise-weighted quietest path (requires APOC) - Neo4j browser only
 `apoc.algo.dijkstra` treats `noise` as edge cost, so this returns the genuinely
-quietest route (lowest summed noise) rather than the shortest:
+quietest route (lowest summed noise) rather than the shortest. **Even with APOC
+loaded, the BloodHound CE Cypher search box rejects this** - its
+`/api/v2/graphs/cypher` endpoint disallows `CALL`/procedure invocation for
+safety. Run it in the **Neo4j browser**, not the BHCE UI:
 ```cypher
 MATCH (start:User {name:"JDOE@CONTOSO.LOCAL"}),
       (end:Group) WHERE end.objectid ENDS WITH "-512"
 CALL apoc.algo.dijkstra(start, end, ">", "noise") YIELD path, weight
 RETURN path, weight ORDER BY weight LIMIT 5
 ```
+
+### Noise-weighted quietest path - BHCE Cypher box (no APOC, no `CALL`)
+Same idea, pure Cypher: enumerate bounded paths and rank by summed noise. This
+**does** run in the BloodHound CE search box:
+```cypher
+MATCH p=(start:User {name:"JDOE@CONTOSO.LOCAL"})-[*1..5]->(end:Group)
+WHERE end.objectid ENDS WITH "-512"
+WITH p, reduce(s=0.0, r IN relationships(p) | s + coalesce(r.noise, 60)) AS noise
+RETURN p ORDER BY noise ASC LIMIT 1
+```
+This enumerates every path up to the hop cap, so keep `*1..5`/`*1..6` - fine at
+lab scale, not for unbounded enumeration on a large graph.
 
 > **APOC is not loaded by the default BloodHound CE stack.** The neo4j image
 > bundles a version-matched `apoc-<ver>-core.jar` under `/var/lib/neo4j/labs`,
