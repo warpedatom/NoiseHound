@@ -4,9 +4,20 @@ All notable changes to NoiseHound are documented here. Format based on
 [Keep a Changelog](https://keepachangelog.com/); this project uses semantic
 versioning.
 
-## [Unreleased]
+## [1.1.0] - 2026-08-21
 
 ### Added
+- **First measured Azure tier from a real tenant** (`profiles/lab-tenant-azure.json`,
+  validation ③). `noisehound-entra` run against a live Entra directory-audit
+  calibration in the DreadHost lab tenant: seven `AZ*` directory-plane abuses
+  triggered, all logged (detection rate 1.00) - AZGlobalAdmin 67, AZAddMembers 51,
+  AZAddSecret 58, AZMGAddSecret/AZAppAdmin/AZCloudAppAdmin 60, AZAddOwner 55.
+- **Elastic ADCS/Azure detection pack + denominator fix.** `noisehound-elastic` now
+  excludes structural topology edges (`Contains`/`GpLink` - no technique/telemetry)
+  from the coverage denominator, and `samples/elastic_adcs_detection_pack.ndjson`
+  ships importable rules (ADCS CA-audit on 4886/4887/5136/4768, Azure VM Run Command)
+  that close the stock Elastic catalog's AD CS blind spot - live-validated to
+  **69/69** measurable-edge coverage. `docs/ELASTIC_TIER.md`.
 - **AzureHound-native ingest** (`noisehound/azure_ingest.py` +
   `noisehound/azure_synthesis.py`). Reads `azurehound list -o` output
   directly - no BloodHound CE required for Azure/Entra data. Two phases:
@@ -57,11 +68,12 @@ versioning.
   resource-plane alert layer on `AZVMContributor`/`AZUserAccessAdministrator`/
   `AZRunsAs`, the alert-tier counterpart to `azure_activity` the way
   `entra_id_protection` is to `entra_audit`.
-- **Measured WDAC tier** (`profiles/vulnad-hyperv-wdac.json`). WDAC deployed in audit
-  mode on the Hyper-V DC; on-host Rubeus/Whisker each raised a CodeIntegrity 3076
-  would-block event, measuring Kerberoast/ASREPRoast (Rubeus) and AddKeyCredentialLink
-  (Whisker) at the tool-signature tier - and confirming WDAC saw nothing from the
-  parallel remote (Impacket/bloodyAD) campaign. `docs/TOOLING_AXIS.md`.
+- **Measured WDAC tier - all 6 edges** (`profiles/vulnad-hyperv-wdac.json`). WDAC
+  deployed in audit mode on the Hyper-V DC; each on-host unsigned tool raised a
+  CodeIntegrity 3076 would-block at image load: Rubeus (Kerberoast/ASREPRoast 44),
+  Whisker (AddKeyCredentialLink 48), mimikatz (DCSync 80 / DumpSMSAPassword 40),
+  Certify (ADCSESC1 50) - and WDAC saw nothing from the parallel remote
+  (Impacket/bloodyAD) campaign, confirming the tooling axis. `docs/TOOLING_AXIS.md`.
 - **WDAC / App Control as a tool-signature detection source.** New `wdac` telemetry
   source (CodeIntegrity 3076 audit / 3077 block) on the on-host-tool edges
   (Kerberoast, ASREPRoast, DumpSMSAPassword, DCSync, AddKeyCredentialLink, ADCSESC1),
@@ -111,6 +123,15 @@ versioning.
   `RemoteDesktopUsers` / `DcomUsers` / `PSRemoteUsers` arrays, silently dropping
   those computer-access edges on every current collection. Both formats are now
   read.
+- **AZAddMembers coverage + AZResetPassword tiering.** `azure_synthesis` now includes
+  DirectoryWriters + IdentityGovernanceAdministrator in the AZAddMembers non-role-
+  assignable tier (both are in post.go's `AddMemberGroupNotRoleAssignableTargetRoles()`
+  but were omitted), and rebuilds the `non_admin_users` exclusion from
+  `_ALL_NAMED_ROLES` directly so adding a role constant can't silently misclassify a
+  holder as a plain AZResetPassword target.
+- **DeadAir cross-repo links made absolute.** `[DeadAir](../deadair)` markdown links
+  (broken on the standalone GitHub repo) now point at the DeadAir repo URL; build-path
+  references stay relative.
 
 ## [1.0.0] - 2026-08-10
 
