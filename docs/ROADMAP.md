@@ -26,44 +26,56 @@ surfaced - not aspirational Phase 1-4 material. Ordered by leverage; each
 item flagged **buildable now**, **gated** (needs a live system/tenant only
 the owner has), or **blocked** (needs another artifact first).
 
+**Done / resolved since this section was written**
+- ~~`azure_activity` resource-plane audit counter~~ - **already shipped.**
+  Wired to all 3 resource-plane edges since the original Azure foundation
+  batch (verified by inspection, 2026-08-20); this item was written on a
+  stale assumption, not a real gap.
+- ~~`sigma.compute_coverage` reconciliation~~ - **confirmed clean, no code
+  change needed.** `noisehound-mdi` and the pending `noisehound-elastic` touch
+  the shared corpus/scoring layer through separate functions
+  (`mdi.compute_coverage` vs `sigma.compute_coverage`'s additive
+  `allow_technique_only` param) - verified by inspection and by running both
+  test suites together on one tree. Not a formality; the answer happened to
+  be "independent by design."
+
+**Needs a design decision, not a mechanical build**
+- **Sentinel as a distinct Azure alert-tier source.** The corpus already
+  acknowledges Sentinel qualitatively (e.g. `AZGlobalAdmin.json`: *"commonly
+  alerted by ID Protection / Sentinel"*), folded into `entra_id_protection`'s
+  text rather than split out. Splitting it into its own `VALID_SOURCES` entry
+  would mean inventing a `reliability` score with no real rule-inventory data
+  behind it - unlike ID Protection (a fixed first-party product with known
+  risk-detection types), Sentinel's actual detection depends entirely on
+  which analytics rules a given tenant deploys. Model it honestly (needs a
+  real Sentinel rule inventory) or leave it hedged as-is - don't fabricate a
+  number to make this look buildable-now.
+
 **Buildable now (no external dependency)**
-1. **`azure_activity` resource-plane audit counter.** `defender_for_cloud`
-   (shipped) covers the *alert* half of the resource-plane edges
-   (`AZVMContributor`/`AZUserAccessAdministrator`/`AZRunsAs`); the *audit*
-   half (`azure_activity`, listed in `docs/AZURE.md`'s source table since the
-   original Azure foundation) still has no telemetry signatures on any edge -
-   asymmetric with how `entra_audit` backs the directory-plane edges.
-2. **Sentinel as a second Azure alert-tier source**, alongside
-   `entra_id_protection` - `noisehound-entra`'s `--risk-detections` hook
-   already generalises to any risk-detection-shaped export.
-3. **`sigma.compute_coverage` reconciliation.** `noisehound-elastic` (pending
-   cherry-pick) and `noisehound-mdi` both extended the same shared function
-   independently, on different machines. Confirm no double-counting or
-   event-id/technique-path drift once both land on one `main` - this is an
-   open correctness question, not a formality.
-4. **Tempo / dwell modeling** and **confidence intervals** (Phase 1 items 3-4,
-   long-standing, still not started).
+1. **Tempo / dwell modeling** and **confidence intervals** (Phase 1 items 3-4,
+   long-standing, still not started) - real statistical-modeling work, sizable
+   enough to warrant its own design pass rather than folding into this batch.
 
 **Gated (owner-only, needs live infra/auth)**
-5. **The first real `lab-tenant-azure` profile** - run `docs/
+2. **The first real `lab-tenant-azure` profile** - run `docs/
    AZURE_CALIBRATION.md` against an actual tenant. Every Azure edge is still
    an expert estimate or fixture-validated; this is what promotes them to
    measured, the same way the on-prem lab run did for 30/57 edges.
-6. **Complete the WDAC measured tier.** `DCSync`/`DumpSMSAPassword`
+3. **Complete the WDAC measured tier.** `DCSync`/`DumpSMSAPassword`
    (mimikatz) and `ADCSESC1` (Certify/Certipy) remain modelled-not-measured -
    those tools weren't run on-host in the session that produced
    `vulnad-hyperv-wdac.json`.
-7. **Live BHCE validation of `sample_lab_ce.zip`** and a **live
+4. **Live BHCE validation of `sample_lab_ce.zip`** and a **live
    `noisehound-elastic`** run (both pending cherry-pick from the main
    machine).
 
 **Blocked (needs a prior artifact)**
-8. **AzureHound-native ingest** (`docs/AZUREHOUND_NATIVE_INGEST.md`) - blocked
+5. **AzureHound-native ingest** (`docs/AZUREHOUND_NATIVE_INGEST.md`) - blocked
    on grounding data (a real AzureHound output + BHCE-imported tenant); recon
    requested, not yet returned. Biggest single gap against "complete" -  a
    promised capability that doesn't exist yet, not a refinement.
-9. **Hybrid edges** (Entra Connect / PHS-PTA / seamless SSO) so MDI
-   contributes across the on-prem/cloud boundary - depends on #8 landing
+6. **Hybrid edges** (Entra Connect / PHS-PTA / seamless SSO) so MDI
+   contributes across the on-prem/cloud boundary - depends on #5 landing
    first (needs real Azure-side principals to link against).
 
 ---
