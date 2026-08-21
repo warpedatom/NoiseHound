@@ -66,8 +66,8 @@ the owner has), or **blocked** (needs another artifact first).
    those tools weren't run on-host in the session that produced
    `vulnad-hyperv-wdac.json`.
 4. **Live BHCE validation of `sample_lab_ce.zip`** and a **live
-   `noisehound-elastic`** run (both pending cherry-pick from the main
-   machine).
+   `noisehound-elastic`** run - both landed on this repo's `main`
+   (2026-08-20); only the live-infra run itself remains, owner-only.
 
 **Blocked (needs a prior artifact)**
 5. **AzureHound-native ingest** (`docs/AZUREHOUND_NATIVE_INGEST.md`) - blocked
@@ -235,25 +235,25 @@ reflects the tooling spread, not just the loudest case. Most-requested conceptua
 
 ## Status snapshot (2026-08-20)
 
-Shipped: BloodHound CE ingestion (real-data validated) with live-Bolt ESC/roasting
-synthesis parity, 71-edge corpus (57 on-prem + 14 Azure/Entra), ADCS ESC1-9a/10b/13
-synthesis (ESC10a intentionally gated), noise-weighted solver with correctness
-backstop, environment profiles, **automated calibration harness + measured profiles
-(on-prem audit/EDR/Elastic + WDAC tool-signature)**, blue-team detection-gap mode,
-Sigma coverage, `noisehound-mdi` (identity-tier coverage), `noisehound-entra`
-(measured Azure calibration tooling), tooling-profile axis (`--tooling`) +
-`--live-scores`, probabilistic + Pareto pathing, live Neo4j read/write-back, DeadAir
-Rust engine + `--engine` dispatch, corpus validator + schema + CI, Azure/Entra
-foundation + WDAC + Defender for Cloud modeling. 66 tests, 100% corpus coverage on
-real exports.
-
-Pending merge onto this repo's `main` (built + tested on the main machine, not yet
-cherry-picked here): modern `LocalGroups` ingest fix (SharpHound v2.13/BHCE emit a
-single RID-keyed list; the old deprecated-array parser was silently dropping every
-computer-access edge on current collections) + the BHCE-ingestable `sample_lab_ce.zip`
-GOAD sample; `noisehound-elastic` (live Kibana detection-rule coverage, sibling of
-`noisehound-mdi`); the measured MDI runtime tier itself (`profiles/
-vulnad-hyperv-mdi.json`, logic described above).
+Shipped: BloodHound CE ingestion (real-data validated, incl. the modern
+RID-keyed `LocalGroups` format - SharpHound v2.13/BHCE dropped the old
+per-collection arrays, which was silently losing every computer-access edge
+until this batch) with live-Bolt ESC/roasting synthesis parity, 71-edge corpus
+(57 on-prem + 14 Azure/Entra), ADCS ESC1-9a/10b/13 synthesis (ESC10a
+intentionally gated), noise-weighted solver with correctness backstop,
+environment profiles, **automated calibration harness + measured profiles
+(on-prem audit/EDR/Elastic/MDI-runtime + WDAC tool-signature)**, blue-team
+detection-gap mode, Sigma + live-Elastic coverage (`noisehound-sigma` /
+`noisehound-elastic`, sharing `compute_coverage`), `noisehound-mdi`
+(identity-tier coverage), `noisehound-entra` (measured Azure calibration
+tooling), tooling-profile axis (`--tooling`) + `--live-scores`, the
+BHCE-ingestable `samples/sample_lab_ce.zip` GOAD sample, probabilistic +
+Pareto pathing, live Neo4j read/write-back, DeadAir Rust engine + `--engine`
+dispatch, corpus validator + schema + CI, Azure/Entra foundation + WDAC +
+Defender for Cloud modeling. **72 tests**, 100% corpus coverage on real
+exports. This repo's `main` and the main machine's now hold the same feature
+set (modulo `docs/WALKTHROUGH.md`, an owner-lineage doc not on this repo -
+separate one-file sync if wanted).
 
 Owner-only validation still open (live infra/auth, not buildable from either
 machine): upload `sample_lab_ce.zip` into a live BHCE once and confirm Analysis
