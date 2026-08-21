@@ -7,6 +7,17 @@ versioning.
 ## [Unreleased]
 
 ### Added
+- **`AZAppAdmin` corpus rename + `AZCloudAppAdmin`.** BloodHound's graph emits
+  `AZAppAdmin`, not `AZApplicationAdmin` - the old key never matched a real
+  collected graph, so the Application Administrator escalation edge was
+  unreachable outside the synthetic fixture. Renamed, and added the sibling
+  `AZCloudAppAdmin` (Cloud Application Administrator) as a new edge with the
+  same telemetry footprint.
+- **`defender_for_cloud` telemetry source** (modeling only - measuring needs a
+  paid MDC plan + a real resource). Names Microsoft Defender for Cloud as the
+  resource-plane alert layer on `AZVMContributor`/`AZUserAccessAdministrator`/
+  `AZRunsAs`, the alert-tier counterpart to `azure_activity` the way
+  `entra_id_protection` is to `entra_audit`.
 - **Measured WDAC tier** (`profiles/vulnad-hyperv-wdac.json`). WDAC deployed in audit
   mode on the Hyper-V DC; on-host Rubeus/Whisker each raised a CodeIntegrity 3076
   would-block event, measuring Kerberoast/ASREPRoast (Rubeus) and AddKeyCredentialLink
