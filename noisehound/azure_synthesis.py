@@ -138,10 +138,14 @@ def synthesize_azure(g: nx.DiGraph) -> int:
             draw(p, t, "AZAddSecret")
 
     # AZResetPassword: tiered so a lower-priv role can't reset a higher-priv
-    # target. "non-admin" = holds none of the 11 named roles this module knows.
-    non_admin_users = all_users - (ga | pra | priv_auth | user_admin | helpdesk
-                                    | auth_admin | pwd_admin | groups_admin
-                                    | app_admin | cloud_app_admin | intune_admin)
+    # target. "non-admin" = holds none of the named roles this module knows -
+    # built from _ALL_NAMED_ROLES (not a hand-listed union of the locals
+    # above) so adding a role constant can't silently miss this exclusion
+    # the way DirectoryWriters/IdentityGovernanceAdmin initially did.
+    all_named_holders: set = set()
+    for role_guid in _ALL_NAMED_ROLES:
+        all_named_holders |= _role_holders(g, role_guid)
+    non_admin_users = all_users - all_named_holders
     for p in (ga | priv_auth):
         for u in all_users:
             draw(p, u, "AZResetPassword")

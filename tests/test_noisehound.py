@@ -1451,6 +1451,37 @@ def test_azure_synthesis_addmembers_directory_writers_and_governance():
     assert "AZAddMembers" in g["U-IGA"]["GRP1"]["edge_types"]
 
 
+def test_azure_synthesis_directory_writers_excluded_from_resetpassword_nonadmin_tier():
+    # Regression: adding a role to _ALL_NAMED_ROLES must actually exclude its
+    # holders from the AZResetPassword "non-admin" target pool - a Password
+    # Administrator can reset a plain user, but not someone who holds Directory
+    # Writers (a named admin-ish role), even though that role grants no
+    # AZResetPassword targeting of its own. Catches the DirectoryWriters/
+    # IdentityGovernanceAdmin patch updating _ALL_NAMED_ROLES (unused elsewhere)
+    # without updating the hand-listed non_admin_users exclusion that actually
+    # gates this tier.
+    from noisehound.azure_synthesis import ROLE_DIRECTORY_WRITERS, ROLE_PASSWORD_ADMIN
+    doc = {
+        "meta": {"type": "azure", "count": 0},
+        "data": [
+            {"kind": "AZUser", "data": {"id": "U-PWDADMIN", "displayName": "PWDADMIN"}},
+            {"kind": "AZUser", "data": {"id": "U-DW", "displayName": "DW"}},
+            {"kind": "AZUser", "data": {"id": "U-PLAIN", "displayName": "PLAIN"}},
+            {"kind": "AZRole", "data": {"id": "R-PWD", "templateId": ROLE_PASSWORD_ADMIN, "displayName": "Password Administrator"}},
+            {"kind": "AZRole", "data": {"id": "R-DW", "templateId": ROLE_DIRECTORY_WRITERS, "displayName": "Directory Writers"}},
+            {"kind": "AZRoleAssignment", "data": {"roleAssignments": [{"principalId": "U-PWDADMIN", "roleDefinitionId": "R-PWD"}]}},
+            {"kind": "AZRoleAssignment", "data": {"roleAssignments": [{"principalId": "U-DW", "roleDefinitionId": "R-DW"}]}},
+        ],
+    }
+    path = _write_json(doc)
+    try:
+        g = load_graph(path)
+    finally:
+        os.remove(path)
+    assert "AZResetPassword" in g["U-PWDADMIN"]["U-PLAIN"]["edge_types"]
+    assert not g.has_edge("U-PWDADMIN", "U-DW")
+
+
 def _run_all():
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0
