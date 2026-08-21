@@ -304,8 +304,14 @@ def _looks_normalised(doc: Any) -> bool:
 
 
 def _ingest_doc(g: nx.DiGraph, doc: Any) -> None:
+    # Lazy import: azure_ingest imports _add_edge/_add_node back from this
+    # module, so importing it at module level here would be circular.
+    from .azure_ingest import is_azurehound_doc, parse_azurehound_doc
+
     if _looks_normalised(doc):
         _parse_normalised(g, doc)
+    elif is_azurehound_doc(doc):
+        parse_azurehound_doc(g, doc)
     elif isinstance(doc, dict) and "data" in doc:
         _parse_bh_file(g, doc)
     else:
@@ -364,6 +370,10 @@ def load_graph(
     g.graph["adcs_edges_synthesized"] = synthesize_adcs(g)
     # Synthesise Kerberoast / AS-REP edges to roastable accounts.
     g.graph["roasting_edges_synthesized"] = synthesize_roasting(g)
+    # Synthesise the Azure post-processed AZ* edges (see azure_synthesis.py).
+    # No-op when the export contains no AZRole nodes.
+    from .azure_synthesis import synthesize_azure
+    g.graph["azure_edges_synthesized"] = synthesize_azure(g)
     return g
 
 

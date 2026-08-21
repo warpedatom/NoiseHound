@@ -1325,6 +1325,83 @@ def test_deadair_engine_matches_python():
         assert [e["edge_type"] for e in a.edges] == [e["edge_type"] for e in b.edges]
 
 
+def test_azurehound_detection():
+    from noisehound.azure_ingest import is_azurehound_doc
+    assert is_azurehound_doc({"meta": {"type": "azure"}, "data": []})
+    assert not is_azurehound_doc({"meta": {"type": "users"}, "data": []})
+    assert not is_azurehound_doc({"nodes": [], "edges": []})
+
+
+def _write_json(doc) -> str:
+    import tempfile
+    fd, path = tempfile.mkstemp(suffix=".json", dir=os.path.join(ROOT, "samples"))
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        json.dump(doc, fh)
+    return path
+
+
+def test_azure_ingest_real_sample_grounds_phase1_and_phase2():
+    # The shipped sample is a trimmed-but-real azurehound v3.1 `list -o`
+    # collection (DreadHost tenant recon, 2026-08-16) - not a synthetic
+    # fixture. Regression-guards both the raw dispatch (AZHasRole from
+    # AZRoleAssignment, AZOwns from the real ARM-nested AZSubscriptionOwner
+    # record) and phase-2 synthesis (AZGlobalAdmin from templateId matching).
+    g = load_graph(os.path.join(ROOT, "samples", "azurehound_native.example.json"))
+    types = {d.get("type") for _, d in g.nodes(data=True)}
+    assert {"AZTenant", "AZUser", "AZRole", "AZServicePrincipal", "AZApp", "AZSubscription"} <= types
+    all_edges = {e for _, _, d in g.edges(data=True) for e in d.get("edge_types", [])}
+    assert "AZHasRole" in all_edges
+    assert "AZOwns" in all_edges
+    assert "AZGlobalAdmin" in all_edges  # phase-2: synthesised, not in raw output
+    assert g.graph["azure_edges_synthesized"] >= 1
+
+
+def test_azure_synthesis_addmembers_addsecret_resetpassword():
+    # Synthetic fixture exercising the resolution logic the real sample
+    # doesn't reach: AZAddMembers (Groups Administrator -> groups), AZAddSecret
+    # (App Administrator -> apps/SPs), and the AZResetPassword tiering (a
+    # Password Administrator can reset a non-admin but not a Global Admin).
+    from noisehound.azure_synthesis import (
+        ROLE_GLOBAL_ADMIN, ROLE_GROUPS_ADMIN, ROLE_APP_ADMIN, ROLE_PASSWORD_ADMIN,
+    )
+    doc = {
+        "meta": {"type": "azure", "count": 0},
+        "data": [
+            {"kind": "AZTenant", "data": {"id": "/TENANTS/T1", "displayName": "T"}},
+            {"kind": "AZUser", "data": {"id": "U-GA", "displayName": "GA"}},
+            {"kind": "AZUser", "data": {"id": "U-GROUPSADMIN", "displayName": "GROUPSADMIN"}},
+            {"kind": "AZUser", "data": {"id": "U-APPADMIN", "displayName": "APPADMIN"}},
+            {"kind": "AZUser", "data": {"id": "U-PWDADMIN", "displayName": "PWDADMIN"}},
+            {"kind": "AZUser", "data": {"id": "U-PLAIN", "displayName": "PLAIN"}},
+            {"kind": "AZGroup", "data": {"id": "GRP1", "displayName": "GRP1"}},
+            {"kind": "AZApp", "data": {"id": "APP1", "displayName": "APP1"}},
+            {"kind": "AZRole", "data": {"id": "R-GA", "templateId": ROLE_GLOBAL_ADMIN, "displayName": "Global Administrator"}},
+            {"kind": "AZRole", "data": {"id": "R-GRP", "templateId": ROLE_GROUPS_ADMIN, "displayName": "Groups Administrator"}},
+            {"kind": "AZRole", "data": {"id": "R-APP", "templateId": ROLE_APP_ADMIN, "displayName": "Application Administrator"}},
+            {"kind": "AZRole", "data": {"id": "R-PWD", "templateId": ROLE_PASSWORD_ADMIN, "displayName": "Password Administrator"}},
+            {"kind": "AZRoleAssignment", "data": {"roleAssignments": [{"principalId": "U-GA", "roleDefinitionId": "R-GA"}]}},
+            {"kind": "AZRoleAssignment", "data": {"roleAssignments": [{"principalId": "U-GROUPSADMIN", "roleDefinitionId": "R-GRP"}]}},
+            {"kind": "AZRoleAssignment", "data": {"roleAssignments": [{"principalId": "U-APPADMIN", "roleDefinitionId": "R-APP"}]}},
+            {"kind": "AZRoleAssignment", "data": {"roleAssignments": [{"principalId": "U-PWDADMIN", "roleDefinitionId": "R-PWD"}]}},
+        ],
+    }
+    path = _write_json(doc)
+    try:
+        g = load_graph(path)
+    finally:
+        os.remove(path)
+
+    # AZAddMembers: Groups Administrator -> the group.
+    assert "AZAddMembers" in g["U-GROUPSADMIN"]["GRP1"]["edge_types"]
+    # AZAddSecret: Application Administrator -> the app.
+    assert "AZAddSecret" in g["U-APPADMIN"]["APP1"]["edge_types"]
+    # AZResetPassword tiering: Password Administrator can reset the plain user...
+    assert "AZResetPassword" in g["U-PWDADMIN"]["U-PLAIN"]["edge_types"]
+    # ...but not the Global Administrator (a lower-priv role can't reset a
+    # higher-priv target - the whole point of postAzureResetPassword's tiers).
+    assert not g.has_edge("U-PWDADMIN", "U-GA")
+
+
 def _run_all():
     fns = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0
