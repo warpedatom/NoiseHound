@@ -4,7 +4,7 @@ All notable changes to NoiseHound are documented here. Format based on
 [Keep a Changelog](https://keepachangelog.com/); this project uses semantic
 versioning.
 
-## [Unreleased]
+## [1.1.1] - 2026-08-22
 
 ### Added
 - **`noisehound-writeback --dry-run`** - report the relationships that would be

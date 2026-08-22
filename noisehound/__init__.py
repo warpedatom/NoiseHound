@@ -5,7 +5,7 @@ count, so an operator can ask "what is the quietest way to Domain Admin"
 rather than just "what is a way".
 """
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 __author__ = "Velkris | DreadHost Research"
 
 # Default score applied to edge types absent from the corpus. Deliberately

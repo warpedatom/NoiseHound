@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "noisehound"
-version = "1.1.0"
+version = "1.1.1"
 description = "Detection-aware Active Directory attack-path scoring on top of BloodHound data"
 readme = "README.md"
 requires-python = ">=3.10"
