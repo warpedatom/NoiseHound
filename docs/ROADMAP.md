@@ -132,6 +132,18 @@ a real Azure tier; the headroom is depth and breadth of measurement, not feature
 9. **Ship the POC as a one-command reproducible demo** (compose lab + seed +
    writeback + the quietest-vs-shortest showcase) so the thesis is self-evident
    without a full lab build.
+10. **Measure the resource-plane Azure edges.** The v1.2 additions `AZContributor`,
+    `AZExecuteCommand`, `AZKeyVaultContributor`, and `AZGetSecrets` are modeled - they
+    can't be measured from directory audits (they log to Azure Activity / Key Vault
+    diagnostics, which need real resources + paid Defender plans). Stand up a VM + a
+    Key Vault in a lab tenant, trigger them, and calibrate an `azure_activity` tier.
+    (`AZMGGrantRole`/`AZMGAddMember` are intentionally left modeled: they share audit
+    signatures with the already-measured `AZGlobalAdmin`/`AZAddMembers`, so a separate
+    directory-audit measurement adds no new detection information.)
+11. **Confidence-aware path reporting.** v1.2 added per-edge confidence intervals to
+    profiles; surface them at the *path* level - flag when a recommended "quiet" route
+    leans on low-confidence (few-run) floors, so an operator knows when a ranking rests
+    on thin measurement rather than trusting it outright.
 
 ---
 

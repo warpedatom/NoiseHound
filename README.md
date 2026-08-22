@@ -20,7 +20,12 @@ NoiseHound ingests the same graph data and re-ranks paths by **expected
 detection cost** instead of hop count, so an operator can ask "what is the
 quietest way to Domain Admin" instead of just "what is a way".
 
-> **Project status (v1.1.0):** stable and tested on real BloodHound data across
+> **New here? The [Operator Walkthrough](docs/WALKTHROUGH.md) is the fastest way to
+> see what this does** - a hands-on, screenshot-driven tour from install to a live
+> BloodHound CE proof of concept (scores written back into the UI), the DeadAir
+> engine, and the blue-team detection-gap report.
+
+> **Project status (v1.2.0):** stable and tested on real BloodHound data across
 > multiple domains. **37 of the 77 corpus edges are lab-measured** across five
 > on-prem detection tiers (Windows audit, Defender for Endpoint, Elastic SIEM,
 > Defender for Identity runtime alerts, and WDAC audit) plus a measured Azure/Entra
@@ -507,8 +512,8 @@ The [`lab/`](lab/) kit automates the detection instrumentation:
 `Enable-Telemetry.ps1` turns on the audit policy, script-block logging, DCSync
 SACL, and Sysmon; `Collect-Detections.ps1` tallies what fired in a window. It
 leans on [GOAD](https://github.com/Orange-Cyberdefense/GOAD) or
-[Vulnerable-AD](https://github.com/WazeHell/vulnerable-AD) (or your CRTP/CRTO
-lab) for the vulnerable domain itself rather than reimplementing them.
+[Vulnerable-AD](https://github.com/WazeHell/vulnerable-AD) (or any existing
+training-lab AD) for the vulnerable domain itself rather than reimplementing them.
 
 ## Responsible use
 

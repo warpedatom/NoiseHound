@@ -18,8 +18,8 @@ measurement workflow.
      attack range (ACLs, delegation, ADCS, trusts). Best coverage.
    - [Vulnerable-AD](https://github.com/WazeHell/vulnerable-AD) - lighter, script
      that randomly injects common misconfigurations.
-   - Your **CRTP/CRTO course lab** - already a real, misconfigured AD you can run
-     SharpHound against today.
+   - Any **existing training-lab AD** you already run - a real, misconfigured
+     domain you can point SharpHound at today.
 
 2. **Instrument detection** on the DC and each member host:
    ```powershell
