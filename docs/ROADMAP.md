@@ -56,18 +56,19 @@ the owner has), or **blocked** (needs another artifact first).
    long-standing, still not started) - real statistical-modeling work, sizable
    enough to warrant its own design pass rather than folding into this batch.
 
-**Gated (owner-only, needs live infra/auth)**
-2. **The first real `lab-tenant-azure` profile** - run `docs/
-   AZURE_CALIBRATION.md` against an actual tenant. Every Azure edge is still
-   an expert estimate or fixture-validated; this is what promotes them to
-   measured, the same way the on-prem lab run did for 30/57 edges.
-3. **Complete the WDAC measured tier.** `DCSync`/`DumpSMSAPassword`
-   (mimikatz) and `ADCSESC1` (Certify/Certipy) remain modelled-not-measured -
-   those tools weren't run on-host in the session that produced
-   `vulnad-hyperv-wdac.json`.
-4. **Live BHCE validation of `sample_lab_ce.zip`** and a **live
-   `noisehound-elastic`** run - both landed on this repo's `main`
-   (2026-08-20); only the live-infra run itself remains, owner-only.
+**Done in v1.1.0 (owner live-infra runs, 2026-08-21)**
+2. ~~The first real `lab-tenant-azure` profile~~ - **shipped.** Ran
+   `docs/AZURE_CALIBRATION.md` against the real DreadHost tenant: seven `AZ*`
+   directory-plane abuses triggered, all logged (rate 1.00) ->
+   `profiles/lab-tenant-azure.json` (first measured Azure tier).
+3. ~~Complete the WDAC measured tier~~ - **shipped.** mimikatz
+   (DCSync/DumpSMSAPassword) and Certify (ADCSESC1) re-measured on-host under
+   WDAC audit mode (CodeIntegrity 3076); `vulnad-hyperv-wdac.json` now scores
+   all 6 edges.
+4. ~~Live BHCE + `noisehound-elastic` validation~~ - **shipped.** BHCE
+   writeback verified live (1,252 relationships stamped with `r.noise`, visible
+   in the Cypher UI); `noisehound-elastic` reached 69/69 measurable-edge
+   coverage against a live Kibana 8.15.3 stack.
 
 **Done since this section was written**
 - ~~AzureHound-native ingest~~ - **shipped** (`azure_ingest.py` +
@@ -85,6 +86,48 @@ the owner has), or **blocked** (needs another artifact first).
    contributes across the on-prem/cloud boundary - now unblocked in principle
    (native ingest gives real Azure-side principals to link against) but not
    started.
+
+---
+
+## v1.2+ - what would make it better (post-1.1.0)
+
+Ordered by leverage, scoped from the v1.1.0 sanity pass and the honest gaps it
+surfaced. 37 of 71 corpus edges are now lab-measured across five on-prem tiers +
+a real Azure tier; the headroom is depth and breadth of measurement, not features.
+
+1. **Deepen measured coverage toward the full 71.** The remaining ~34 edges are
+   expert estimates. Highest value: the coercion/relay family, ADCS ESC2-13
+   (only ESC1/9a/10b/13 are measured), and `CanRDP` on a clean bare-metal target
+   (the Hyper-V DC reconnect artifact made it hard to isolate a fresh type-10).
+2. **Multi-environment calibration.** Every measured profile comes from one
+   Hyper-V GOAD lab. Ship profiles from a second, materially different
+   environment (different audit policy, EDR vendor, forest topology) so operators
+   can see how much scores move by environment - and so the shipped defaults
+   generalise beyond one lab.
+3. **Make detection monotonic in calibrate.** A measured detection should never
+   *lower* an edge's floor below its corpus static (v1.1.0's WDAC run nudged
+   DCSync 85 -> 80 because the tier's lab score sits below DCSync's baseline).
+   Add a `max(calibrated, static)` guard for "detected" observations, or a
+   per-tier "detection only adds noise" mode, so a new detection layer can only
+   make an edge louder.
+4. **Confidence intervals + sample size per edge.** Surface `runs`/`detections`
+   and a calibration CI alongside each measured floor (Phase 1 item 4, elevate),
+   so consumers can weight a 1-run WDAC measurement differently from a 40-run
+   audit-tier one.
+5. **Broader live detection-inventory ingestion.** `noisehound-elastic` +
+   `noisehound-mdi` prove the normalise-then-score pattern; extend it to Splunk,
+   Microsoft Sentinel (needs a real analytics-rule inventory - see the design
+   note above), and Defender XDR advanced-hunting.
+6. **Widen the Azure corpus.** BHCE emits many AZ edges the corpus doesn't model
+   yet (`AZExecuteCommand`, `AZKeyVault*`, `AZGetSecrets/Keys/Certificates`, the
+   `AZMG*` family, `AZGrant*`). Add them + their Entra/Graph telemetry signatures.
+7. **SpecterOps OpenGraph integration** so NoiseHound scores ride as first-class
+   edge properties and custom edge types round-trip through BHCE.
+8. **`noisehound-writeback --dry-run`** (buildable now, small) - report the edges
+   it *would* stamp, reassuring operators running it against production BloodHound.
+9. **Ship the POC as a one-command reproducible demo** (compose lab + seed +
+   writeback + the quietest-vs-shortest showcase) so the thesis is self-evident
+   without a full lab build.
 
 ---
 
