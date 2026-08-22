@@ -202,6 +202,13 @@ The tool prints a summary showing, per edge, how far the measured score moved
 from the static estimate. Re-run as you gather more data; more runs give the
 lab more weight over the corpus (the `--smoothing` knob controls how fast).
 
+The summary's `95% CI` column (and a per-edge `confidence` block in the emitted
+profile: `runs`, `detections`, `rate_ci`, `score_ci`) is a **Wilson interval**
+propagated through the calibration blend, so you can tell a 1-run measurement
+(wide interval) from a 40-run one (tight interval) instead of trusting every
+floor equally. A wide interval means "measure it more times before relying on
+this floor." The block is additive metadata - scoring reads only `adjustments`.
+
 ---
 
 ## 6. Iterating

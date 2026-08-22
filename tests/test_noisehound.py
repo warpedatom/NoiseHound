@@ -464,6 +464,26 @@ def test_calibration_shrinks_toward_corpus_with_few_runs():
     assert one["confidence_weight"] < many["confidence_weight"]
 
 
+def test_calibration_confidence_interval_widens_with_fewer_runs():
+    from noisehound.calibrate import calibrate_observation, calibrate, _wilson_ci
+    one = calibrate_observation(
+        {"edge_type": "X", "runs": 1, "detections": 1, "severity": "high"}, static_score=50.0)
+    many = calibrate_observation(
+        {"edge_type": "X", "runs": 40, "detections": 40, "severity": "high"}, static_score=50.0)
+    span = lambda ci: ci[1] - ci[0]
+    # A 1-run measurement must carry a wider score interval than a 40-run one.
+    assert span(one["score_ci"]) > span(many["score_ci"])
+    assert one["score_ci"][0] <= one["calibrated_score"] <= one["score_ci"][1]
+    # Wilson interval: 1/1 is wide (not 0-width), 40/40 is tight and high.
+    assert _wilson_ci(1, 1)[0] < 0.5 and _wilson_ci(40, 40)[0] > 0.9
+    # calibrate() carries a per-edge confidence block (additive metadata).
+    corpus = load_corpus()
+    profile, _ = calibrate({"observations": [
+        {"edge_type": "DCSync", "runs": 1, "detections": 1, "severity": "high"}]}, corpus)
+    assert "confidence" in profile
+    assert set(profile["confidence"]["DCSync"]) == {"runs", "detections", "rate_ci", "score_ci"}
+
+
 def test_calibration_end_to_end_and_roundtrip():
     from noisehound.calibrate import calibrate
     from noisehound.environment import EnvironmentProfile

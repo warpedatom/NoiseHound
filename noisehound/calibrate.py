@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 
 from . import __version__
@@ -65,6 +66,22 @@ _POSTURE_KEYS = (
 
 def _clamp(x: float) -> float:
     return max(0.0, min(100.0, x))
+
+
+def _wilson_ci(detections: int, runs: int, z: float = 1.96) -> tuple:
+    """95% Wilson score interval for a binomial detection rate.
+
+    Preferred over the normal approximation at the small sample sizes lab
+    calibration produces: a 1-run measurement gets a wide, honest interval
+    (roughly 0.02-0.98 for 1/1) instead of a false 0-width one.
+    """
+    if runs <= 0:
+        return (0.0, 1.0)
+    p = detections / runs
+    denom = 1.0 + z * z / runs
+    center = (p + z * z / (2 * runs)) / denom
+    half = (z * math.sqrt(p * (1 - p) / runs + z * z / (4 * runs * runs))) / denom
+    return (max(0.0, center - half), min(1.0, center + half))
 
 
 def calibrate_observation(
@@ -96,16 +113,30 @@ def calibrate_observation(
     w = runs / (runs + smoothing)
     calibrated = _clamp(round(w * lab_score + (1.0 - w) * static_score))
 
+    # Propagate the detection-rate uncertainty (Wilson) through the same blend
+    # to a calibrated-score interval, so consumers can tell a 1-run measurement
+    # from a 40-run one instead of trusting every floor equally.
+    p_lo, p_hi = _wilson_ci(detections, runs)
+
+    def _score_at(pp: float) -> int:
+        lab = pp * loudness + (1.0 - pp) * obs_residual
+        return _clamp(round(w * lab + (1.0 - w) * static_score))
+
+    lo, hi = _score_at(p_lo), _score_at(p_hi)
+    score_ci = [int(min(lo, hi)), int(max(lo, hi))]
+
     return {
         "edge_type": edge_type,
         "runs": runs,
         "detections": detections,
         "detection_rate": round(p, 3),
+        "rate_ci": [round(p_lo, 3), round(p_hi, 3)],
         "severity": severity,
         "lab_score": round(lab_score, 1),
         "static_score": round(static_score, 1),
         "confidence_weight": round(w, 3),
         "calibrated_score": calibrated,
+        "score_ci": score_ci,
         "delta": round(calibrated - static_score, 1),
         "signals": obs.get("signals", []),
     }
@@ -138,6 +169,17 @@ def calibrate(
         if key in detections:
             profile[key] = detections[key]
     profile["adjustments"] = adjustments
+    # Additive metadata: sample size + a 95% score interval per edge. Consumers
+    # that only read "adjustments" ignore it; from_dict does too.
+    profile["confidence"] = {
+        rec["edge_type"]: {
+            "runs": rec["runs"],
+            "detections": rec["detections"],
+            "rate_ci": rec["rate_ci"],
+            "score_ci": rec["score_ci"],
+        }
+        for rec in records
+    }
     return profile, records
 
 
@@ -152,19 +194,25 @@ def _merge_profile(base: dict, generated: dict) -> dict:
     adj = dict(base.get("adjustments", {}) or {})
     adj.update(generated.get("adjustments", {}))
     merged["adjustments"] = adj
+    conf = dict(base.get("confidence", {}) or {})
+    conf.update(generated.get("confidence", {}))
+    if conf:
+        merged["confidence"] = conf
     return merged
 
 
 def _render_summary(records: list) -> str:
     if not records:
         return "No observations to calibrate."
-    lines = ["edge_type                 runs  det   rate  static  lab  ->  calibrated  delta",
-             "-" * 82]
+    lines = ["edge_type                 runs  det   rate  static  lab  ->  calibrated  delta   95% CI",
+             "-" * 96]
     for r in sorted(records, key=lambda x: -x["calibrated_score"]):
+        ci = r.get("score_ci", [r["calibrated_score"], r["calibrated_score"]])
         lines.append(
-            "%-25s %4d %4d  %5.2f  %5.1f  %5.1f     %6d   %+6.1f"
+            "%-25s %4d %4d  %5.2f  %5.1f  %5.1f     %6d   %+6.1f   [%2d-%2d]"
             % (r["edge_type"][:25], r["runs"], r["detections"], r["detection_rate"],
-               r["static_score"], r["lab_score"], r["calibrated_score"], r["delta"])
+               r["static_score"], r["lab_score"], r["calibrated_score"], r["delta"],
+               ci[0], ci[1])
         )
     return "\n".join(lines)
 

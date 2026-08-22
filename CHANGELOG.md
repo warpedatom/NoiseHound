@@ -4,6 +4,17 @@ All notable changes to NoiseHound are documented here. Format based on
 [Keep a Changelog](https://keepachangelog.com/); this project uses semantic
 versioning.
 
+## [Unreleased]
+
+### Added
+- **Confidence intervals on calibrated scores.** `noisehound-calibrate` now
+  computes a 95% Wilson interval on each edge's detection rate and propagates it
+  through the calibration blend to a per-edge score interval. The summary gains a
+  `95% CI` column and the emitted profile carries a `confidence` block
+  (`runs`/`detections`/`rate_ci`/`score_ci`), so consumers can weight a 1-run
+  measurement (wide interval) differently from a 40-run one (tight). Additive
+  metadata - scoring still reads only `adjustments`.
+
 ## [1.1.1] - 2026-08-22
 
 ### Added
