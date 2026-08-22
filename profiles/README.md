@@ -13,7 +13,7 @@ shrinkage estimator), not estimated. Applying a profile changes real path
 rankings - e.g. on the bundled sample the audit profile flips the quietest path
 from a 4-hop session-hijack chain to a 1-hop ADCS ESC1 (see `docs/VALIDATION.md`).
 
-## The three tiers
+## The tiers
 
 | Profile | Tier | Edges | What it models |
 |---------|------|-------|----------------|
@@ -34,9 +34,19 @@ scored by `noisehound-calibrate`. Full methodology: `docs/CALIBRATION.md`,
 
 ## Honest scope + caveats
 
-- **30 of 57 corpus edges** are measured (the DC-local + lateral subset a single
-  DC + member server exposes). The rest still carry corpus estimates. Coercion/
-  relay, the remaining ADCS ESC2-13, and AllExtendedRights are unmeasured.
+- **37 of 77 corpus edges** are measured (the DC-local + lateral subset a single
+  DC + member server exposes, plus the directory-plane Azure tier). The rest still
+  carry corpus estimates. Coercion/relay, the remaining ADCS ESC2-13, and the newer
+  resource-plane Azure edges are unmeasured.
+- **Each profile is a *standalone-tier* view, not an additive layer.** A profile's
+  score answers "how loud is this edge if *this* tier is your only detection?" - so a
+  measured score can sit *below* the corpus static, and that is correct: the static is
+  a composite prior (audit + EDR + MDI), while a single tier legitimately catches some
+  edges weakly or not at all. `DCSync` scores 59 in audit-only (4662 is default-off),
+  85 with a full stack, and 80 under WDAC-only (WDAC catches the unsigned binary, but
+  at its own fidelity). Applying `-e` *replaces* the score for the tier you declare; it
+  does not stack on the corpus baseline. (This is why "a detection lowered the floor"
+  is usually not a bug - see ROADMAP.)
 - **Single lab.** One audit baseline, one EDR (MDE), one SIEM (Elastic). Treat the
   numbers as a well-grounded reference point, not a universal constant - recalibrate
   for your environment with the harness.

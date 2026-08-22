@@ -104,12 +104,15 @@ a real Azure tier; the headroom is depth and breadth of measurement, not feature
    environment (different audit policy, EDR vendor, forest topology) so operators
    can see how much scores move by environment - and so the shipped defaults
    generalise beyond one lab.
-3. **Make detection monotonic in calibrate.** A measured detection should never
-   *lower* an edge's floor below its corpus static (v1.1.0's WDAC run nudged
-   DCSync 85 -> 80 because the tier's lab score sits below DCSync's baseline).
-   Add a `max(calibrated, static)` guard for "detected" observations, or a
-   per-tier "detection only adds noise" mode, so a new detection layer can only
-   make an edge louder.
+3. ~~Make detection monotonic in calibrate~~ - **resolved as a semantics decision,
+   not a code change.** Investigation showed ~40 profile values sit below their corpus
+   static and *most are correct*: a profile is a **standalone-tier** view ("how loud is
+   this edge if this tier is your only detection?"), so an edge is legitimately quieter
+   when that tier alone catches it weakly - DCSync 59 in audit-only (4662 default-off),
+   80 under WDAC-only (WDAC's own fidelity), 85 with a full stack. A blanket
+   `max(calibrated, static)` guard would corrupt that signal. Documented the
+   standalone-tier interpretation in `profiles/README.md`. If an *additive-layer*
+   profile is ever wanted, that is a separate opt-in mode, not a default.
 4. **Confidence intervals + sample size per edge.** Surface `runs`/`detections`
    and a calibration CI alongside each measured floor (Phase 1 item 4, elevate),
    so consumers can weight a 1-run WDAC measurement differently from a 40-run
