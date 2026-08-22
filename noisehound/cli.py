@@ -297,3 +297,7 @@ def main(argv: list | None = None) -> int:
         print(out)
 
     return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
