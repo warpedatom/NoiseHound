@@ -123,8 +123,9 @@ a real Azure tier; the headroom is depth and breadth of measurement, not feature
    `AZMG*` family, `AZGrant*`). Add them + their Entra/Graph telemetry signatures.
 7. **SpecterOps OpenGraph integration** so NoiseHound scores ride as first-class
    edge properties and custom edge types round-trip through BHCE.
-8. **`noisehound-writeback --dry-run`** (buildable now, small) - report the edges
-   it *would* stamp, reassuring operators running it against production BloodHound.
+8. ~~`noisehound-writeback --dry-run`~~ - **shipped.** Reports the edges it *would*
+   stamp (count + per-type breakdown) with no Neo4j connection, so operators can
+   preview before running against production BloodHound.
 9. **Ship the POC as a one-command reproducible demo** (compose lab + seed +
    writeback + the quietest-vs-shortest showcase) so the thesis is self-evident
    without a full lab build.

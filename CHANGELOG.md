@@ -4,6 +4,16 @@ All notable changes to NoiseHound are documented here. Format based on
 [Keep a Changelog](https://keepachangelog.com/); this project uses semantic
 versioning.
 
+## [Unreleased]
+
+### Added
+- **`noisehound-writeback --dry-run`** - report the relationships that would be
+  stamped (count + per-type breakdown) without connecting to or writing anything to
+  Neo4j; a safe preview before running against a production BloodHound.
+- **Auto-create the GitHub Release on a version tag.** `publish.yml` now creates the
+  GitHub Release (with generated notes + the built artifacts) after the PyPI publish,
+  so a `v*` tag no longer needs a manual release step.
+
 ## [1.1.0] - 2026-08-21
 
 ### Added

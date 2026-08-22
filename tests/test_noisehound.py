@@ -949,6 +949,19 @@ def test_writeback_builds_rows_and_runs_with_mock_driver():
     assert row["s"] == "S-1" and row["t"] == "S-2" and row["n"] == 40.0
 
 
+def test_writeback_dry_run_writes_nothing(capsys, monkeypatch):
+    from noisehound import writeback
+    # A dry run must never touch Neo4j: if it tries to construct a driver, fail loud.
+    import neo4j
+    monkeypatch.setattr(neo4j.GraphDatabase, "driver",
+                        staticmethod(lambda *a, **k: (_ for _ in ()).throw(
+                            AssertionError("dry run must not connect to Neo4j"))))
+    rc = writeback.main(["-i", os.path.join(ROOT, "samples", "sample_lab_ce.zip"), "--dry-run"])
+    err = capsys.readouterr().err
+    assert rc == 0
+    assert "DRY RUN" in err and "nothing written" in err
+
+
 def test_neo4j_record_to_graph():
     from noisehound.neo4j_ingest import build_graph_from_records, is_bolt_uri
     assert is_bolt_uri("bolt://localhost:7687")

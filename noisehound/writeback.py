@@ -85,6 +85,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--neo4j-user", default=None)
     p.add_argument("--neo4j-password", default=None)
     p.add_argument("--neo4j-database", default=None)
+    p.add_argument("--dry-run", action="store_true",
+                   help="Report the edges that WOULD be stamped (count + per-type breakdown) "
+                        "without writing anything to Neo4j. Reassurance before running against "
+                        "a production BloodHound instance.")
     p.add_argument("--version", action="version", version="noisehound-writeback %s" % __version__)
     return p
 
@@ -94,7 +98,7 @@ def main(argv: list | None = None) -> int:
     args = build_parser().parse_args(argv)
 
     target = args.target or (args.input if is_bolt_uri(args.input) else None)
-    if not is_bolt_uri(target or ""):
+    if not args.dry_run and not is_bolt_uri(target or ""):
         print("error: a bolt:// --target (or a bolt:// --input) is required to write back",
               file=sys.stderr)
         return 2
@@ -115,6 +119,18 @@ def main(argv: list | None = None) -> int:
             return 2
 
     annotate(graph, corpus, environment=environment)
+
+    if args.dry_run:
+        from collections import Counter
+        rows = _rows(graph)
+        known = sum(1 for r in rows if r["k"])
+        by_et = Counter(r["et"] for r in rows)
+        print("DRY RUN - would stamp r.noise on %d relationships (%d corpus-known, %d "
+              "defaulted); nothing written." % (len(rows), known, len(rows) - known),
+              file=sys.stderr)
+        for et, n in by_et.most_common(15):
+            print("  %-24s %d" % (et, n), file=sys.stderr)
+        return 0
 
     user = args.neo4j_user or os.environ.get("NEO4J_USER", "neo4j")
     password = args.neo4j_password if args.neo4j_password is not None else os.environ.get("NEO4J_PASSWORD", "")
