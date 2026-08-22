@@ -84,18 +84,26 @@ scored from nothing - their noise surfaces through the concrete follow-on abuse
 `--risk-detections` (Graph `/identityProtection/riskDetections`) raises matched
 edges to the alert tier. See `docs/AZURE_CALIBRATION.md` for the full recipe.
 
-## The starter edge set (14)
+## The edge set (20)
 
 - **Roles / privilege escalation:** `AZGlobalAdmin`, `AZPrivilegedRoleAdmin`,
-  `AZAppAdmin`, `AZCloudAppAdmin`, `AZUserAccessAdministrator`, `AZHasRole`.
+  `AZAppAdmin`, `AZCloudAppAdmin`, `AZUserAccessAdministrator`, `AZHasRole`,
+  `AZMGGrantRole` (MS Graph app-role grants any directory role, incl. GA).
 - **App / service-principal credential abuse:** `AZAddSecret`, `AZMGAddSecret`
   (MS Graph app-role), `AZAddOwner`, `AZOwns`.
-- **Account / group takeover:** `AZResetPassword`, `AZAddMembers`.
-- **Resource-plane execution:** `AZVMContributor` (run-command), `AZRunsAs`
+- **Account / group takeover:** `AZResetPassword`, `AZAddMembers`, `AZMGAddMember`
+  (MS Graph app-role adds a group member).
+- **Resource-plane execution:** `AZVMContributor` (run-command), `AZContributor`
+  (broad resource control), `AZExecuteCommand` (Intune script push), `AZRunsAs`
   (managed-identity / SP a resource runs as).
+- **Secret access:** `AZKeyVaultContributor` (grant self vault access, then read),
+  `AZGetSecrets` (Key Vault data-plane read - quiet unless diagnostic logging is on).
 
 Passive rights (`AZOwns`, `AZHasRole`) score low - the follow-on *action* is what
-generates noise, mirroring how `AdminTo` is scored on-prem.
+generates noise, mirroring how `AdminTo` is scored on-prem. The six edges added in
+v1.2 (`AZContributor`, `AZExecuteCommand`, `AZKeyVaultContributor`, `AZGetSecrets`,
+`AZMGAddMember`, `AZMGGrantRole`) ship as **modeled** estimates (flagged
+`noise_known = false`) until a lab-tenant run measures them.
 
 ## What's next (roadmap)
 

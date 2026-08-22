@@ -1,0 +1,31 @@
+{
+  "edge_type": "AZContributor",
+  "description": "Contributor RBAC role on a subscription/resource group - deploy resources, run commands, and read managed-identity tokens across the scope.",
+  "static_noise_score": 45,
+  "mitre_technique": "T1651",
+  "prerequisite_privilege": "Contributor (or Owner) on the target scope",
+  "abuse_primitive": "Deploy a resource / run-command / read a managed identity token to pivot; e.g. az vm run-command, ARM template deployment.",
+  "telemetry": [
+    {
+      "source": "azure_activity",
+      "event_id": null,
+      "detail": "Azure Activity log records the ARM write/action (resource create, run-command, deployment). Default-on, but Contributor writes blend with legitimate admin activity.",
+      "reliability": "high"
+    },
+    {
+      "source": "defender_for_cloud",
+      "event_id": null,
+      "detail": "Defender for Cloud (Resource Manager plan) can alert on anomalous/suspicious ARM operations; requires the paid plan.",
+      "reliability": "medium",
+      "default_enabled": false
+    },
+    {
+      "source": "edr_heuristic",
+      "event_id": null,
+      "detail": "If the deployed payload or run-command runs on an EDR-onboarded host, it is caught on-host.",
+      "reliability": "high",
+      "product_class": "MDE"
+    }
+  ],
+  "notes": "Broad and common role, so the control-plane write is logged but rarely alert-worthy on its own; the follow-on compute/identity abuse is the louder signal."
+}

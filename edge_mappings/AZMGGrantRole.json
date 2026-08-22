@@ -1,0 +1,35 @@
+{
+  "edge_type": "AZMGGrantRole",
+  "description": "Microsoft Graph app role (RoleManagement.ReadWrite.Directory) - grant any Entra directory role, including Global Administrator, from a service principal.",
+  "static_noise_score": 55,
+  "mitre_technique": "T1098.003",
+  "prerequisite_privilege": "A service principal holding the RoleManagement.ReadWrite.Directory app role",
+  "abuse_primitive": "Graph POST to add a principal to a privileged directoryRole (e.g. Global Administrator) - the classic app-based privilege escalation.",
+  "telemetry": [
+    {
+      "source": "entra_audit",
+      "event_id": null,
+      "detail": "Entra ID audit log: 'Add member to role' / 'Add eligible member to role' (directory logging default-on).",
+      "reliability": "high",
+      "default_enabled": true,
+      "activity": [
+        "Add member to role",
+        "Add eligible member to role"
+      ],
+      "category": "RoleManagement"
+    },
+    {
+      "source": "entra_id_protection",
+      "event_id": null,
+      "detail": "A privileged-role grant to a risky principal can surface in Entra ID Protection / privileged-role-change alerting.",
+      "reliability": "medium"
+    },
+    {
+      "source": "mdca",
+      "event_id": null,
+      "detail": "Defender for Cloud Apps flags privileged directory-role additions.",
+      "reliability": "medium"
+    }
+  ],
+  "notes": "Granting a privileged role is high-signal and default-logged; a first-party product (ID Protection) plus SIEM commonly alert on it. Loudest of the AZMG family."
+}

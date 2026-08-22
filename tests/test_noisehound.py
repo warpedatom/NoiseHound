@@ -34,6 +34,21 @@ def test_corpus_loads_and_validates():
     assert corpus.static_score("dcsync")[0] == 85.0
 
 
+def test_widened_azure_corpus_edges_present():
+    # v1.2 breadth: resource-plane + MS Graph AZ edges beyond the original 13.
+    corpus = load_corpus()
+    for et in ("AZContributor", "AZExecuteCommand", "AZKeyVaultContributor",
+               "AZGetSecrets", "AZMGAddMember", "AZMGGrantRole"):
+        assert et in corpus, "missing new AZ edge %s" % et
+        score, known = corpus.static_score(et)
+        assert 0 <= score <= 100 and known
+        entry = corpus.get(et)
+        assert entry.get("mitre_technique")           # each carries a technique
+        assert entry.get("telemetry")                 # and at least one telemetry source
+    # AZGetSecrets is a genuine blind spot: Key Vault data-plane auditing is opt-in.
+    assert corpus.static_score("AZGetSecrets")[0] < corpus.static_score("AZMGGrantRole")[0]
+
+
 def test_unknown_edge_fails_safe():
     corpus = load_corpus(default_unknown_noise=60)
     score, known = corpus.static_score("TotallyMadeUpEdge")

@@ -1,0 +1,28 @@
+{
+  "edge_type": "AZMGAddMember",
+  "description": "Microsoft Graph app role (GroupMember.ReadWrite.All / Group.ReadWrite.All) - add a member to a group, including role-eligible groups, from a service principal.",
+  "static_noise_score": 42,
+  "mitre_technique": "T1098",
+  "prerequisite_privilege": "A service principal holding the GroupMember.ReadWrite.All app role",
+  "abuse_primitive": "Graph POST /groups/{id}/members/$ref to add a principal you control to a privileged group.",
+  "telemetry": [
+    {
+      "source": "entra_audit",
+      "event_id": null,
+      "detail": "Entra ID audit log: 'Add member to group' (directory logging default-on).",
+      "reliability": "high",
+      "default_enabled": true,
+      "activity": [
+        "Add member to group"
+      ],
+      "category": "GroupManagement"
+    },
+    {
+      "source": "mdca",
+      "event_id": null,
+      "detail": "Defender for Cloud Apps can flag unusual group-membership changes by an app/service principal.",
+      "reliability": "medium"
+    }
+  ],
+  "notes": "Default-logged in the directory audit; alerting depends on MDCA/SIEM. The service-principal actor (vs a user) is itself a useful anomaly signal."
+}

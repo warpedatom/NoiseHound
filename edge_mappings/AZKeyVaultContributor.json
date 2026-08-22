@@ -1,0 +1,24 @@
+{
+  "edge_type": "AZKeyVaultContributor",
+  "description": "Key Vault Contributor / management rights - modify the vault's access policy or RBAC to grant yourself data-plane access, then read its secrets.",
+  "static_noise_score": 48,
+  "mitre_technique": "T1555.006",
+  "prerequisite_privilege": "Key Vault Contributor (or Owner/Contributor) on the vault",
+  "abuse_primitive": "Add an access policy / RBAC assignment for yourself (Microsoft.KeyVault/vaults/accessPolicies/write), then read secrets (see AZGetSecrets).",
+  "telemetry": [
+    {
+      "source": "azure_activity",
+      "event_id": null,
+      "detail": "Azure Activity log records the vault/access-policy write (Microsoft.KeyVault/vaults/write, .../accessPolicies/write). Default-on and a strong tell - self-granting vault access is anomalous.",
+      "reliability": "high"
+    },
+    {
+      "source": "defender_for_cloud",
+      "event_id": null,
+      "detail": "Defender for Cloud (Key Vault plan) alerts on suspicious access-policy changes and anomalous vault access; paid plan.",
+      "reliability": "medium",
+      "default_enabled": false
+    }
+  ],
+  "notes": "The management-plane access-policy change is default-logged and high-fidelity; the subsequent secret read (AZGetSecrets) is quieter."
+}

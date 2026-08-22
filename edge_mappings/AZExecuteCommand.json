@@ -1,0 +1,24 @@
+{
+  "edge_type": "AZExecuteCommand",
+  "description": "Run scripts/commands on Intune-managed devices via Endpoint Manager (MDM push) - code execution on every enrolled endpoint.",
+  "static_noise_score": 50,
+  "mitre_technique": "T1651",
+  "prerequisite_privilege": "Intune Administrator / Endpoint Manager script or remediation rights",
+  "abuse_primitive": "Push a PowerShell script / proactive remediation to enrolled devices as SYSTEM.",
+  "telemetry": [
+    {
+      "source": "azure_activity",
+      "event_id": null,
+      "detail": "Intune/Endpoint Manager audit log records the script assignment/push (management-plane). Default-on.",
+      "reliability": "medium"
+    },
+    {
+      "source": "edr_heuristic",
+      "event_id": null,
+      "detail": "The pushed script executes on each device as SYSTEM and is caught on-host by EDR.",
+      "reliability": "high",
+      "product_class": "MDE"
+    }
+  ],
+  "notes": "Loud on-host (many endpoints run the payload) but the Intune push itself resembles legitimate management; EDR is the reliable catch."
+}

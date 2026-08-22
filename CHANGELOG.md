@@ -7,6 +7,12 @@ versioning.
 ## [Unreleased]
 
 ### Added
+- **Wider Azure corpus (+6 edges, 71 -> 77).** Added `AZContributor`,
+  `AZExecuteCommand`, `AZKeyVaultContributor`, `AZGetSecrets`, `AZMGAddMember`, and
+  `AZMGGrantRole` with resource-plane / MS Graph telemetry signatures and techniques,
+  grounded in BHCE's edge semantics. Modeled estimates (`noise_known = false`) until a
+  lab-tenant run measures them; `AZGetSecrets` is flagged as a genuine blind spot (Key
+  Vault data-plane auditing is opt-in). `docs/AZURE.md`.
 - **Confidence intervals on calibrated scores.** `noisehound-calibrate` now
   computes a 95% Wilson interval on each edge's detection rate and propagates it
   through the calibration blend to a per-edge score interval. The summary gains a
