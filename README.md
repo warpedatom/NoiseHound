@@ -20,12 +20,14 @@ NoiseHound ingests the same graph data and re-ranks paths by **expected
 detection cost** instead of hop count, so an operator can ask "what is the
 quietest way to Domain Admin" instead of just "what is a way".
 
-> **Project status (v1.0):** stable and tested on real BloodHound data across
-> multiple domains. **30 of the 57 on-prem edges are lab-measured** across four
-> detection tiers (audit, Defender for Endpoint, Elastic SIEM, and MDI posture) -
-> shipped as drop-in profiles in [`profiles/`](profiles/), with closed-loop proof
-> they change path rankings ([`docs/VALIDATION.md`](docs/VALIDATION.md)). The corpus
-> also now includes 13 **Azure/Entra** edges ([`docs/AZURE.md`](docs/AZURE.md)).
+> **Project status (v1.1.0):** stable and tested on real BloodHound data across
+> multiple domains. **37 of the 71 corpus edges are lab-measured** across five
+> on-prem detection tiers (Windows audit, Defender for Endpoint, Elastic SIEM,
+> Defender for Identity runtime alerts, and WDAC audit) plus a measured Azure/Entra
+> tier - shipped as six drop-in profiles in [`profiles/`](profiles/), with
+> closed-loop proof they change path rankings ([`docs/VALIDATION.md`](docs/VALIDATION.md)).
+> The corpus includes 13 **Azure/Entra** edges ([`docs/AZURE.md`](docs/AZURE.md)),
+> ingestible straight from AzureHound output.
 > Un-measured on-prem and all Azure edges carry **expert estimates**; the calibration
 > harness (`noisehound-calibrate`) is how they, and your own environment, get
 > measured. Treat uncalibrated rankings as well-reasoned guidance, not ground truth.
@@ -286,10 +288,11 @@ Environment profiles are only as good as the numbers you put in them.
 `noisehound-calibrate` closes the loop: run the techniques in a detection lab,
 record what fired, and it emits a calibrated environment profile.
 
-**This has been done.** [`profiles/`](profiles/) ships three measured profiles from
-a real Hyper-V Vulnerable-AD range - audit, EDR (Defender for Endpoint), and Elastic
-SIEM tiers, 30 edges - produced by the automated harness (`lab/`) and this tool. Use
-them directly, or measure your own:
+**This has been done.** [`profiles/`](profiles/) ships six measured profiles from a
+real Hyper-V Vulnerable-AD range and a lab Azure tenant - audit, EDR (Defender for
+Endpoint), Elastic SIEM, Defender for Identity, and WDAC tiers plus a measured
+Azure/Entra tier, 37 edges - produced by the automated harness (`lab/`) and this
+tool. Use them directly, or measure your own:
 
 ```bash
 # Use a shipped measured profile:
@@ -458,14 +461,15 @@ detection facts. Tune them against your own lab detection data.
 - **Azure / Entra ID coverage (foundation shipped, expanding).** 13 `AZ*`
   attack-path edges now ship with Entra-native detection telemetry - see
   [`docs/AZURE.md`](docs/AZURE.md). Azure data collected via AzureHound into
-  BloodHound CE is scored today (`noisehound -o "Global Administrator"`). Next:
-  AzureHound-native ingestion, Entra posture profiles (MDCA / ID Protection /
-  Sentinel), hybrid edges (Entra Connect / PHS-PTA) so **MDI** contributes across
-  the on-prem/cloud boundary, and a measured Azure calibration tier.
-- **Finish calibration - 30/57 measured, continuing.** Remaining ~27 edges
-  (coercion/relay, ADCS ESC2-13), the **MDI runtime-alert tier** (posture works;
-  the alert path needs a bare-metal/Ludus DC - see `docs/CALIBRATION.md`), and a
-  multi-EDR corpus (CrowdStrike/S1 beside MDE), plus per-edge tooling calibration to
+  BloodHound CE is scored today (`noisehound -o "Global Administrator"`), and
+  AzureHound-native ingestion plus a measured Azure/Entra calibration tier
+  (`noisehound-entra`, `profiles/lab-tenant-azure.json`) now ship too. Next: Entra
+  posture profiles (MDCA / ID Protection / Sentinel) and hybrid edges (Entra
+  Connect / PHS-PTA) so **MDI** contributes across the on-prem/cloud boundary.
+- **Finish calibration - 37/71 measured, continuing.** Remaining ~34 edges
+  (coercion/relay, ADCS ESC2-13, CanRDP on bare metal), deeper multi-environment
+  calibration, and a multi-EDR corpus (CrowdStrike/S1 beside MDE), plus per-edge
+  tooling calibration to
   broaden the `--tooling` axis.
 - **ADCS ESC10a/10b/13 synthesis** (ESC1-9 synthesis ships now).
 
