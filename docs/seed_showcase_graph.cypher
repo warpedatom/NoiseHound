@@ -1,4 +1,4 @@
-// NoiseHound walkthrough — corpus-breadth showcase seed
+// NoiseHound walkthrough - corpus-breadth showcase seed
 // ------------------------------------------------------------------
 // A larger ACME.LOCAL environment whose edges span much of the measured
 // corpus, from the loudest technique (DCSync, ~85) down to the quietest

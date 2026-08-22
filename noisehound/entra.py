@@ -4,7 +4,7 @@ The on-prem tiers are calibrated by triggering each abuse in a lab and counting
 what fired (``noisehound-calibrate`` consumes a ``lab_detections.json`` of
 ``observations``). This module is the Azure-side *counter* that produces those
 observations from Entra ID telemetry, so a lab tenant can be calibrated the same
-way — "measure what actually fires," not expert estimates.
+way - "measure what actually fires," not expert estimates.
 
 It is the cloud analogue of the on-prem PowerShell harness: instead of counting
 Windows Security EventIDs on a DC, it counts **Microsoft Graph directory-audit
@@ -15,25 +15,25 @@ source), within the run's time window, and emits ``{edge_type, runs, detections,
 severity}``. That JSON drops straight into ``noisehound-calibrate`` (or is
 calibrated inline with ``--profile-out``) to produce a measured Azure profile.
 
-Inputs (all offline files the operator exports — NoiseHound never authenticates):
+Inputs (all offline files the operator exports - NoiseHound never authenticates):
 
-* ``--audit-log directoryAudits.json`` — a Graph ``/auditLogs/directoryAudits``
+* ``--audit-log directoryAudits.json`` - a Graph ``/auditLogs/directoryAudits``
   export (``{"value":[...]}`` or a bare list). Each record supplies
   ``activityDisplayName``, ``category``, ``loggedByService``, ``result``,
   ``activityDateTime``.
-* ``--manifest runs.json`` — what was exercised:
+* ``--manifest runs.json`` - what was exercised:
   ``{"environment": "lab-tenant-azure",
      "observations": [{"edge_type": "AZGlobalAdmin", "runs": 3,
                        "start": "2026-08-20T00:00:00Z", "end": "...Z"}]}``.
   ``start``/``end`` are optional; without them the whole log is the window.
-* ``--risk-detections riskDetections.json`` — optional Graph
+* ``--risk-detections riskDetections.json`` - optional Graph
   ``/identityProtection/riskDetections`` export; a matching detection raises an
   edge's severity to the alert tier.
 
 Only the *directory audit* signal is counted here; role/ownership-holding edges
 (``AZHasRole``, ``AZOwns``) log nothing until the concrete abuse runs, and the
 resource-plane edges (``AZUserAccessAdministrator``, ``AZVMContributor``,
-``AZRunsAs``) surface in Azure Activity logs, not directory audits — all carry an
+``AZRunsAs``) surface in Azure Activity logs, not directory audits - all carry an
 empty signature and are reported as not-audit-measurable rather than silently
 scored.
 """

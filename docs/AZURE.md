@@ -52,7 +52,7 @@ future Entra posture profile, below).
 Entra sources use activity **names** (in `detail`), not numeric event IDs, so
 `event_id` is `null` for them. The directory-plane abuse edges additionally carry
 a machine-matchable `activity` list (+ `category`) on their `entra_audit`
-telemetry — the exact `activityDisplayName`s their abuse writes to the audit log —
+telemetry - the exact `activityDisplayName`s their abuse writes to the audit log -
 which the measured tier (`noisehound-entra`, below) matches against a real audit
 export.
 
@@ -79,7 +79,7 @@ emits `{runs, detections}` observations, and reuses `noisehound-calibrate`'s
 shrinkage math. Holding-only edges (`AZHasRole`, `AZOwns`) and resource-plane
 edges (`AZUserAccessAdministrator`, `AZVMContributor`, `AZRunsAs`) carry no
 directory-audit signature and are reported as *not audit-measurable* rather than
-scored from nothing — their noise surfaces through the concrete follow-on abuse
+scored from nothing - their noise surfaces through the concrete follow-on abuse
 (a secret add / member add) or Azure Activity, not directory audits. Optional
 `--risk-detections` (Graph `/identityProtection/riskDetections`) raises matched
 edges to the alert tier. See `docs/AZURE_CALIBRATION.md` for the full recipe.

@@ -43,7 +43,7 @@ versioning.
   XDR Attack Disruption (prevented, not just detected); AddMember / shadow-creds /
   ADCS ESC1 did not raise MDI runtime alerts. Fourth measured detection tier
   alongside audit / EDR / Elastic.
-- **`noisehound-elastic` — score against a live Elastic Security detection
+- **`noisehound-elastic` - score against a live Elastic Security detection
   inventory.** Reads enabled detection rules from a running Kibana detection
   engine over the read-only `_find` API (or an offline `--rules-json` export),
   maps each rule's ATT&CK technique + any Windows event codes in its query, and
@@ -51,7 +51,7 @@ versioning.
   `noisehound-sigma`. Adds a conservative technique-only match tier (flagged
   `[technique]`, penalised) for behavioural KQL/EQL rules that name no event code;
   disabled rules are ignored. Stdlib-only (no new dependency).
-- **`samples/sample_lab_ce.zip` — a BHCE-ingestable bundled sample.** A lightly
+- **`samples/sample_lab_ce.zip` - a BHCE-ingestable bundled sample.** A lightly
   sanitised real SharpHound CE collection of the public GOAD `sevenkingdoms.local`
   lab (323 objects, 25 edge families incl. full AD CS), so the operator
   walkthrough is a pure upload → writeback → view flow with no Cypher seed. Built

@@ -1,11 +1,11 @@
-// NoiseHound walkthrough — safe demo-graph seed
+// NoiseHound walkthrough - safe demo-graph seed
 // ------------------------------------------------------------------
 // Seeds the small CORP.LOCAL two-route scenario used in
 // docs/WALKTHROUGH.md so you can reproduce the screenshots offline.
 //
 // SAFE BY DESIGN: this script only MERGEs (creates-if-absent) six nodes
 // and five relationships. It performs NO delete and touches nothing
-// else in your database — running it twice is a no-op, and running it
+// else in your database - running it twice is a no-op, and running it
 // against a populated graph just adds these demo objects alongside your
 // data. (It does not wipe anything. Ever.)
 //
@@ -14,7 +14,7 @@
 //   * a loud  2-hop path : GenericAll -> MemberOf
 // NoiseHound ranks the 4-hop path as the quietest (see the walkthrough).
 //
-// NOTE: on a REAL engagement you do not need this at all — just point
+// NOTE: on a REAL engagement you do not need this at all - just point
 // NoiseHound at your own SharpHound collection or live Neo4j. This seed
 // exists only because a hand-authored micro-sample does not round-trip
 // computer/session edges (AdminTo, HasSession) through BloodHound CE's
