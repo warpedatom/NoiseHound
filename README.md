@@ -21,7 +21,7 @@ detection cost** instead of hop count, so an operator can ask "what is the
 quietest way to Domain Admin" instead of just "what is a way".
 
 > **Project status (v1.1.0):** stable and tested on real BloodHound data across
-> multiple domains. **37 of the 71 corpus edges are lab-measured** across five
+> multiple domains. **37 of the 77 corpus edges are lab-measured** across five
 > on-prem detection tiers (Windows audit, Defender for Endpoint, Elastic SIEM,
 > Defender for Identity runtime alerts, and WDAC audit) plus a measured Azure/Entra
 > tier - shipped as six drop-in profiles in [`profiles/`](profiles/), with
@@ -466,7 +466,7 @@ detection facts. Tune them against your own lab detection data.
   (`noisehound-entra`, `profiles/lab-tenant-azure.json`) now ship too. Next: Entra
   posture profiles (MDCA / ID Protection / Sentinel) and hybrid edges (Entra
   Connect / PHS-PTA) so **MDI** contributes across the on-prem/cloud boundary.
-- **Finish calibration - 37/71 measured, continuing.** Remaining ~34 edges
+- **Finish calibration - 37/77 measured, continuing.** Remaining ~40 edges
   (coercion/relay, ADCS ESC2-13, CanRDP on bare metal), deeper multi-environment
   calibration, and a multi-EDR corpus (CrowdStrike/S1 beside MDE), plus per-edge
   tooling calibration to

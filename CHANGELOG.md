@@ -4,7 +4,7 @@ All notable changes to NoiseHound are documented here. Format based on
 [Keep a Changelog](https://keepachangelog.com/); this project uses semantic
 versioning.
 
-## [Unreleased]
+## [1.2.0] - 2026-08-22
 
 ### Added
 - **Wider Azure corpus (+6 edges, 71 -> 77).** Added `AZContributor`,

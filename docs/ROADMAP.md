@@ -92,10 +92,10 @@ the owner has), or **blocked** (needs another artifact first).
 ## v1.2+ - what would make it better (post-1.1.0)
 
 Ordered by leverage, scoped from the v1.1.0 sanity pass and the honest gaps it
-surfaced. 37 of 71 corpus edges are now lab-measured across five on-prem tiers +
+surfaced. 37 of 77 corpus edges are now lab-measured across five on-prem tiers +
 a real Azure tier; the headroom is depth and breadth of measurement, not features.
 
-1. **Deepen measured coverage toward the full 71.** The remaining ~34 edges are
+1. **Deepen measured coverage toward the full 77.** The remaining ~40 edges are
    expert estimates. Highest value: the coercion/relay family, ADCS ESC2-13
    (only ESC1/9a/10b/13 are measured), and `CanRDP` on a clean bare-metal target
    (the Hyper-V DC reconnect artifact made it hard to isolate a fresh type-10).
@@ -288,7 +288,7 @@ reflects the tooling spread, not just the loudest case. Most-requested conceptua
 Shipped: BloodHound CE ingestion (real-data validated, incl. the modern
 RID-keyed `LocalGroups` format - SharpHound v2.13/BHCE dropped the old
 per-collection arrays, which was silently losing every computer-access edge
-until this batch) with live-Bolt ESC/roasting synthesis parity, 71-edge corpus
+until this batch) with live-Bolt ESC/roasting synthesis parity, 77-edge corpus
 (57 on-prem + 14 Azure/Entra), ADCS ESC1-9a/10b/13 synthesis (ESC10a
 intentionally gated), noise-weighted solver with correctness backstop,
 environment profiles, **automated calibration harness + measured profiles

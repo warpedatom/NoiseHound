@@ -484,7 +484,7 @@ would compute - e.g. recovering `AZGlobalAdmin` from a raw role assignment:
 
 ## 6. The corpus at a glance
 
-NoiseHound scores **71 edge types**; **37 are calibrated against real lab
+NoiseHound scores **77 edge types**; **37 are calibrated against real lab
 telemetry** across six measured profiles spanning five on-prem detection tiers
 (Windows auditing, Microsoft Defender for Endpoint, Elastic SIEM, Defender for
 Identity, WDAC audit) plus a measured Azure/Entra tier. The rest carry
@@ -535,7 +535,7 @@ tier-specific values ship as drop-in profiles in [`profiles/`](../profiles); see
 
 ## 8. Honest scoping
 
-The scores are only as good as the measurements behind them. **37 of the 71
+The scores are only as good as the measurements behind them. **37 of the 77
 corpus edges are calibrated against real telemetry** across five on-prem detection
 tiers (Windows audit, Defender for Endpoint, Elastic SIEM, Defender for Identity,
 WDAC audit) plus a measured Azure/Entra tier; the rest carry conservative
